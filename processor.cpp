@@ -50,25 +50,48 @@ void proc_print_error (enum Proc_error error)
     PRINT_END();
 }
 
-enum Proc_error calculations (struct Stack* stk, double* buffer, struct stat statbuf)
+enum Proc_error calculations (struct Stack* stk, char* buffer, struct stat statbuf)
 {
     PRINT_BEGIN();
     enum StkError error = STK_NO_ERROR;
-    for (size_t i = 0; i < statbuf.st_size; i++)
+    stk_element reg[4] = {};
+    stk_element a = 0;
+    stk_element b = 0;
+    for (size_t position = 0; position < statbuf.st_size; position++)
     {
-        stk_element a = 0;
-        stk_element b = 0;
-        switch ((int) buffer[i])
+        switch ((char) buffer[position])
         {
-            case PUSH:
-                fprintf (log_file, "case 1\n");
-                i += 1;
-                error = stack_push (stk, buffer[i]);
+            case IN:
+                printf ("Enter your double in stack.\n");
+                scanf ("%lf", &a);
+                error = stack_push (stk, a);
                 if (error)
-                    return PROC_STACK_PUSH_ERROR;;
+                    return PROC_STACK_PUSH_ERROR;
+                break;
+            case PUSH + NUM:
+                fprintf (log_file, "case PUSH + NUM\n");
+                error = stack_push (stk, *(double*)(buffer + position + sizeof (char)));
+                position += sizeof (double);
+                if (error)
+                    return PROC_STACK_PUSH_ERROR;
+                break;
+            case PUSH + REG:
+                fprintf (log_file, "case PUSH + REG\n");
+                error = stack_push (stk, reg[*(char*)(buffer + position + sizeof (char))]);
+                position += sizeof (char);
+                if (error)
+                    return PROC_STACK_PUSH_ERROR;
+                break;
+            case POP + REG:
+                fprintf (log_file, "case POP + REG\n");
+                error = stack_pop (stk, &a);
+                reg[*(char*)(buffer + position + sizeof (char))] = a;
+                position += sizeof (char);
+                if (error)
+                    return PROC_STACK_PUSH_ERROR;
                 break;
             case ADD:
-                fprintf (log_file, "case 2\n");
+                fprintf (log_file, "case ADD\n");
                 error = stack_pop (stk, &a);
                 if (error)
                     return PROC_STACK_POP_ERROR;
@@ -80,7 +103,7 @@ enum Proc_error calculations (struct Stack* stk, double* buffer, struct stat sta
                     return PROC_STACK_PUSH_ERROR;
                 break;
             case SUB:
-                fprintf (log_file, "case 3\n");
+                fprintf (log_file, "case SUB\n");
                 error = stack_pop (stk, &a);
                 if (error)
                     return PROC_STACK_POP_ERROR;
@@ -92,7 +115,7 @@ enum Proc_error calculations (struct Stack* stk, double* buffer, struct stat sta
                     return PROC_STACK_PUSH_ERROR;
                 break;
             case MUL:
-                fprintf (log_file, "case 4\n");
+                fprintf (log_file, "case MUL\n");
                 error = stack_pop (stk, &a);
                 if (error)
                     return PROC_STACK_POP_ERROR;
@@ -104,7 +127,7 @@ enum Proc_error calculations (struct Stack* stk, double* buffer, struct stat sta
                     return PROC_STACK_PUSH_ERROR;
                 break;
             case DIV:
-                fprintf (log_file, "case 5\n");
+                fprintf (log_file, "case DIV\n");
                 error = stack_pop (stk, &a);
                 if (error)
                     return PROC_STACK_POP_ERROR;
@@ -116,7 +139,7 @@ enum Proc_error calculations (struct Stack* stk, double* buffer, struct stat sta
                     return PROC_STACK_PUSH_ERROR;
                 break;
             case OUT:
-                fprintf (log_file, "case 6\n");
+                fprintf (log_file, "case OUT\n");
                 error = stack_pop (stk, &a);
                 if (error)
                     return PROC_STACK_POP_ERROR;
@@ -153,7 +176,7 @@ enum Proc_error calculations (struct Stack* stk, double* buffer, struct stat sta
     return PROC_NO_ERROR;
 }*/
 
-enum Proc_error processing_file (const char* NAME, char** buffer, FILE** code_file, double** array, struct stat* statbuf)
+enum Proc_error processing_file (const char* NAME, char** buffer, FILE** code_file, struct stat* statbuf)
 {
     PRINT_BEGIN();
     enum Proc_error proc_error = PROC_NO_ERROR;
@@ -165,15 +188,11 @@ enum Proc_error processing_file (const char* NAME, char** buffer, FILE** code_fi
         return PROC_CALLOC_FAIL;
     *buffer = temp;
     printf ("%d\n", fread (*buffer, sizeof (char), statbuf->st_size, *code_file));
-    *array = (double*) calloc (num_of_double, sizeof (double));
-    proc_error = char_to_double (*buffer, *array);
-    if (proc_error != PROC_NO_ERROR)
-        return proc_error;
     PRINT_END();
     return PROC_NO_ERROR;
 }
 
-enum Proc_error char_to_double (char* buffer, double* array)
+/*enum Proc_error char_to_double (char* buffer, double* array)
 {
     PRINT_BEGIN();
     char* ptr_to_remains = NULL;
@@ -194,7 +213,7 @@ enum Proc_error char_to_double (char* buffer, double* array)
             buffer++;
     }
     return PROC_NO_ERROR;
-}
+}*/
 
 
 

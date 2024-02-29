@@ -13,16 +13,15 @@ int main (int argc, char* argv[])
     FILE *code_file = NULL;
     const char* NAME = argv[1];
     char* buffer = NULL;
-    double* int_array = NULL;
 
-    proc_error = processing_file (NAME, &buffer, &code_file, &int_array, &statbuf);
+    proc_error = processing_file (NAME, &buffer, &code_file, &statbuf);
     proc_print_error (proc_error);
 
 
     stk_error = stack_ctor  (&stk, BASIC_CAPACITY);
     stk_print_error (stk_error);
 
-    proc_error = calculations (&stk, int_array, statbuf);
+    proc_error = calculations (&stk, buffer, statbuf);
     proc_print_error (proc_error);
 
     stack_dump (&stk);
