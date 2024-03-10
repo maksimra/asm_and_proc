@@ -59,6 +59,8 @@ enum Proc_error calculations (struct Stack* stk, char* buffer, struct stat statb
     stk_element b = 0;
     for (size_t position = 0; position < statbuf.st_size; position++)
     {
+        printf ("buffer[position] = %d\n", buffer[position]);
+        printf ("Крайнее число стэка: %g\n", *((char*) stk->data + stk->size));
         switch ((char) buffer[position])
         {
             case IN:
@@ -70,7 +72,9 @@ enum Proc_error calculations (struct Stack* stk, char* buffer, struct stat statb
                 break;
             case PUSH + NUM:
                 fprintf (log_file, "case PUSH + NUM\n");
+                printf ("%d\n", buffer[position]);
                 error = stack_push (stk, *(double*)(buffer + position + sizeof (char)));
+                printf ("%lf\n", *((char*) stk->data + position));
                 position += sizeof (double);
                 if (error)
                     return PROC_STACK_PUSH_ERROR;
@@ -148,6 +152,7 @@ enum Proc_error calculations (struct Stack* stk, char* buffer, struct stat statb
             case HLT:
                 return PROC_NO_ERROR;
             default:
+                printf ("<%d>", buffer[position]);
                 fprintf (log_file, "Зашёл в default\n");
                 return PROC_ERROR_CMDS;
         }
