@@ -77,7 +77,7 @@ enum StkError stack_dtor (struct Stack *stk)
     stk->data = NULL;
     stk->capacity = 0;
     stk->size = 0;
-    stk->stk_hash = stk->data_hash = 0; // стэк дамб подробный
+    stk->stk_hash = stk->data_hash = 0;
     PRINT_END();
     return STK_NO_ERROR;
 }
@@ -116,7 +116,7 @@ uint32_t get_hash (const uint8_t* key, size_t length)
 enum StkError stack_push (struct Stack *stk, stk_element elem)
 {
     PRINT_BEGIN();
-    enum StkError error = STK_NO_ERROR; // после реаллокации поизоном заполнять
+    enum StkError error = STK_NO_ERROR;
     error = stk_verifier (stk);
     if (error != STK_NO_ERROR)
         return error;
@@ -164,11 +164,12 @@ enum StkError stk_resize (struct Stack* stk, size_t new_capacity)
         if (temp == NULL)
             return STK_REALLOC_FAIL;
 
-        *(can_type*) ((stk_element*) stk->data + stk->capacity) = 0; // POISON
+        *(can_type*) ((stk_element*) stk->data + stk->capacity) = 0;
         *(can_type*) ((stk_element*) stk->data + new_capacity) = CANARY_MAIN;
     }
     stk->data = (stk_element*)((char*) temp + sizeof (CANARY_MAIN));
     stk->capacity = new_capacity; // сделать обертку (единообразно)
+    filler (stk->data + stk->size, stk->capacity - stk->size, &POISON, sizeof (POISON));
     PRINT_END();
     return STK_NO_ERROR;
 }
@@ -237,8 +238,7 @@ void stk_print_error (enum StkError error)
 {
     PRINT_BEGIN();
     fprintf (log_file, "%s\n", stk_get_error (error));
-    PRINT_END(); // написать бинарник: 1 байт на каоманду: 3 бита на информуцию, с регистрами работаем/стэком/ 5 бит - на команду.
-    // тк у меня даблы, то ещё 8 байт на число или на на номера регистров
+    PRINT_END();
 }
 
 enum StkError stk_verifier (struct Stack* stk)
@@ -263,7 +263,7 @@ enum StkError stk_verifier (struct Stack* stk)
         return STK_SIZE_BIGGER_CAPACITY;
 
     for (size_t i = 0; i < stk->capacity - stk->size; i++)
-        if (stk->data[stk->size + i] != POISON) // проверить, норм ли работает проверка
+        if (stk->data[stk->size + i] != POISON)
             return STK_NO_POISON;
 
     for (size_t i = 0; i < stk->size; i++)

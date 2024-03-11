@@ -64,8 +64,10 @@ enum Proc_error calculations (struct Stack* stk, char* buffer, struct stat statb
         switch ((char) buffer[position])
         {
             case IN:
+                printf ("Я в IN!!!\n");
                 printf ("Enter your double in stack.\n");
                 scanf ("%lf", &a);
+                printf ("Толкаю в стэк %lf\n", a);
                 error = stack_push (stk, a);
                 if (error)
                     return PROC_STACK_PUSH_ERROR;
@@ -81,6 +83,7 @@ enum Proc_error calculations (struct Stack* stk, char* buffer, struct stat statb
                 break;
             case PUSH + REG:
                 fprintf (log_file, "case PUSH + REG\n");
+                printf ("Номер регистра ");
                 error = stack_push (stk, reg[*(char*)(buffer + position + sizeof (char))]);
                 position += sizeof (char);
                 if (error)
@@ -89,6 +92,8 @@ enum Proc_error calculations (struct Stack* stk, char* buffer, struct stat statb
             case POP + REG:
                 fprintf (log_file, "case POP + REG\n");
                 error = stack_pop (stk, &a);
+                printf ("%d\n", *(char*)(buffer + position));
+                printf ("Номер регистра = %d\n", *(char*)(buffer + position + sizeof (char)));
                 reg[*(char*)(buffer + position + sizeof (char))] = a;
                 position += sizeof (char);
                 if (error)
@@ -121,9 +126,12 @@ enum Proc_error calculations (struct Stack* stk, char* buffer, struct stat statb
             case MUL:
                 fprintf (log_file, "case MUL\n");
                 error = stack_pop (stk, &a);
+                printf ("a = %d\n", a);
+                printf ("error = %d\n", error);
                 if (error)
                     return PROC_STACK_POP_ERROR;
                 error = stack_pop (stk, &b);
+                printf ("b = %d\n", b);
                 if (error)
                     return PROC_STACK_POP_ERROR;
                 error = stack_push (stk, a * b);
@@ -244,6 +252,10 @@ const char* proc_get_error (enum Proc_error error)
             return "Proc: Нулевой указатель на файл.";
         case PROC_CALLOC_FAIL:
             return "Proc: Ошибка функции calloc.";
+        case PROC_STACK_POP_ERROR:
+            return "Proc: Ошибка функции pop.";
+        case PROC_STACK_PUSH_ERROR:
+            return "Proc: Ошибка функции push.";
         default:
             return "Stack: Куда делся мой enum ошибок?";
     }
