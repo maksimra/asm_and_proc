@@ -19,6 +19,7 @@ enum Cmds
     DIV = 6,
     OUT = 7,
     IN = 8,
+    JMP = 9,
     HLT = -1
 };
 

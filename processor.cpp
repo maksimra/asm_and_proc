@@ -150,6 +150,13 @@ enum Proc_error calculations (struct Stack* stk, char* buffer, struct stat statb
                 if (error)
                     return PROC_STACK_PUSH_ERROR;
                 break;
+            case JMP + NUM:
+                fprintf (log_file, "case JMP\n");
+                printf ("position ==== %d\n", position);
+                position = *(double*)(buffer + position + sizeof (char));
+                position--;
+                printf ("position == %d\n", position);
+                break;
             case OUT:
                 fprintf (log_file, "case OUT\n");
                 error = stack_pop (stk, &a);
