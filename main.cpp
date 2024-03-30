@@ -6,11 +6,11 @@ size_t BASIC_CAPACITY = 50;
 int main (int argc, char* argv[])
 {
     enum Proc_error proc_error = PROC_NO_ERROR;
-    enum StkError stk_error = STK_NO_ERROR; // это для гита
+    enum StkError stk_error = STK_NO_ERROR;
     check_argc(argc);
     struct Stack stk = {};
     struct stat statbuf = {};
-    FILE *code_file = NULL;
+    FILE* code_file = NULL;
     const char* NAME = argv[1];
     char* buffer = NULL;
 
@@ -28,6 +28,8 @@ int main (int argc, char* argv[])
 
     stk_error = stack_dtor  (&stk);
     stk_print_error (stk_error);
+
+    free (buffer);
 
     return 0;
 }

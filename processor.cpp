@@ -38,7 +38,7 @@ enum Proc_error open_file_and_fill_stat (const char *NAME, FILE** file, struct s
         return PROC_ERROR_FOPEN;
     if (stat (NAME, statbuf))
         return PROC_ERROR_STAT;
-    printf ("%zu\n", statbuf->st_size);
+    printf ("%lu\n", statbuf->st_size);
     PRINT_END();
     return PROC_NO_ERROR;
 }
@@ -59,7 +59,6 @@ enum Proc_error calculations (struct Stack* stk, char* buffer, struct stat statb
     stk_element b = 0;
     for (size_t position = 0; position < statbuf.st_size; position++)
     {
-        printf ("buffer[position] = %d\n", buffer[position]);
         printf ("Крайнее число стэка: %g\n", *((char*) stk->data + stk->size));
         switch ((char) buffer[position])
         {
@@ -74,7 +73,7 @@ enum Proc_error calculations (struct Stack* stk, char* buffer, struct stat statb
                 break;
             case PUSH + NUM:
                 fprintf (log_file, "case PUSH + NUM\n");
-                printf ("%d\n", buffer[position]);
+                printf ("Кладу в стэк %lf\n", *(double*)(buffer + position + sizeof (char)));
                 error = stack_push (stk, *(double*)(buffer + position + sizeof (char)));
                 printf ("%lf\n", *((char*) stk->data + position));
                 position += sizeof (double);
@@ -83,7 +82,8 @@ enum Proc_error calculations (struct Stack* stk, char* buffer, struct stat statb
                 break;
             case PUSH + REG:
                 fprintf (log_file, "case PUSH + REG\n");
-                printf ("Номер регистра ");
+                printf ("Номер регистра  = %d\n", *(char*)(buffer + position + sizeof (char)));
+                printf ("Кладу в стэк %lf\n", reg[*(char*)(buffer + position + sizeof (char))]);
                 error = stack_push (stk, reg[*(char*)(buffer + position + sizeof (char))]);
                 position += sizeof (char);
                 if (error)
@@ -92,9 +92,9 @@ enum Proc_error calculations (struct Stack* stk, char* buffer, struct stat statb
             case POP + REG:
                 fprintf (log_file, "case POP + REG\n");
                 error = stack_pop (stk, &a);
-                printf ("%d\n", *(char*)(buffer + position));
-                printf ("Номер регистра = %d\n", *(char*)(buffer + position + sizeof (char)));
-                reg[*(char*)(buffer + position + sizeof (char))] = a;
+                printf ("%d\n", *(buffer + position));
+                printf ("Номер регистра = %d\n", *(buffer + position + sizeof (char)));
+                reg[*(buffer + position + sizeof (char))] = a;
                 position += sizeof (char);
                 if (error)
                     return PROC_STACK_PUSH_ERROR;
@@ -126,15 +126,16 @@ enum Proc_error calculations (struct Stack* stk, char* buffer, struct stat statb
             case MUL:
                 fprintf (log_file, "case MUL\n");
                 error = stack_pop (stk, &a);
-                printf ("a = %d\n", a);
+                printf ("a = %lf\n", a);
                 printf ("error = %d\n", error);
                 if (error)
                     return PROC_STACK_POP_ERROR;
                 error = stack_pop (stk, &b);
-                printf ("b = %d\n", b);
+                printf ("b = %lf\n", b);
                 if (error)
                     return PROC_STACK_POP_ERROR;
                 error = stack_push (stk, a * b);
+                printf ("Кладу в стэк %lf\n", a * b);
                 if (error)
                     return PROC_STACK_PUSH_ERROR;
                 break;

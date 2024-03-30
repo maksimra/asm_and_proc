@@ -1,4 +1,4 @@
-#include "Stack.h"
+#include "stack.h"
 
 //==================================================================================================
 
@@ -35,7 +35,6 @@ enum StkError stack_set_log_file (FILE* file)
 enum StkError stack_ctor (struct Stack *stk, size_t capacity)
 {
     PRINT_BEGIN();
-    enum StkError error = STK_NO_ERROR;
 
     if (stk->data != NULL)
         return STK_SECOND_CTOR;
@@ -86,7 +85,7 @@ void stack_dump (struct Stack *stk)
 {
     for (size_t i = 0; i < stk->size; i++)
     {
-        fprintf (log_file, "%d: <%lf> ", i, stk->data[i]);
+        fprintf (log_file, "%zu: <%lf> ", i, stk->data[i]);
     }
 
     fprintf (log_file, "capacity = %zu\n"
@@ -155,19 +154,21 @@ enum StkError stk_resize (struct Stack* stk, size_t new_capacity)
 
         *(can_type*) temp = CANARY_MAIN;
         *(can_type*)((char*) temp + sizeof (CANARY_MAIN) + new_capacity * sizeof(stk_element)) = CANARY_MAIN;
+        stk->data = (stk_element*)((char*) temp + sizeof (CANARY_MAIN));
     }
     else
     {
+        *(can_type*) ((stk_element*) stk->data + stk->capacity) = 0;
+
         temp = (stk_element*) realloc ((char*) stk->data - sizeof (CANARY_MAIN),
                                         new_capacity * sizeof(stk_element) + 2 * sizeof (CANARY_MAIN));
 
         if (temp == NULL)
             return STK_REALLOC_FAIL;
 
-        *(can_type*) ((stk_element*) stk->data + stk->capacity) = 0;
+        stk->data = (stk_element*)((char*) temp + sizeof (CANARY_MAIN));
         *(can_type*) ((stk_element*) stk->data + new_capacity) = CANARY_MAIN;
     }
-    stk->data = (stk_element*)((char*) temp + sizeof (CANARY_MAIN));
     stk->capacity = new_capacity; // сделать обертку (единообразно)
     filler (stk->data + stk->size, stk->capacity - stk->size, &POISON, sizeof (POISON));
     PRINT_END();

@@ -4,7 +4,7 @@
 #include <stdio.h>
 #include <math.h>
 #include <ctype.h>
-#include <sys\stat.h>
+#include <sys/stat.h>
 #include <assert.h>
 #include <stdlib.h>
 #include "stack.h"
