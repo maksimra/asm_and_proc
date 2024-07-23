@@ -7,7 +7,8 @@ int main (int argc, char* argv[])
 {
     enum Proc_error proc_error = PROC_NO_ERROR;
     enum StkError stk_error = STK_NO_ERROR;
-    check_argc(argc);
+    proc_error = check_argc(argc);
+    proc_print_error (proc_error);
     struct Stack stk = {};
     struct stat statbuf = {};
     FILE* code_file = NULL;
@@ -15,7 +16,7 @@ int main (int argc, char* argv[])
     char* buffer = NULL;
 
     proc_error = processing_file (NAME, &buffer, &code_file, &statbuf);
-    proc_print_error (proc_error);
+    proc_print_error (proc_error); 
 
 
     stk_error = stack_ctor  (&stk, BASIC_CAPACITY);

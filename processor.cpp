@@ -38,7 +38,7 @@ enum Proc_error open_file_and_fill_stat (const char *NAME, FILE** file, struct s
         return PROC_ERROR_FOPEN;
     if (stat (NAME, statbuf))
         return PROC_ERROR_STAT;
-    printf ("%lu\n", statbuf->st_size);
+    printf ("%ld\n", statbuf->st_size);
     PRINT_END();
     return PROC_NO_ERROR;
 }
@@ -57,10 +57,11 @@ enum Proc_error calculations (struct Stack* stk, char* buffer, struct stat statb
     stk_element reg[4] = {};
     stk_element a = 0;
     stk_element b = 0;
-    for (size_t position = 0; position < statbuf.st_size; position++)
+    for (size_t position = 0; position < (size_t) statbuf.st_size; position++)
     {
-        printf ("Крайнее число стэка: %g\n", *((char*) stk->data + stk->size));
-        switch ((char) buffer[position])
+        printf ("Крайнее число стэка: %g\n", *(double*)((char*) stk->data + stk->size));
+        // маску делать + if, который обрабатывает аргумент
+        switch ((char) buffer[position] )
         {
             case IN:
                 printf ("Я в IN!!!\n");
@@ -75,16 +76,16 @@ enum Proc_error calculations (struct Stack* stk, char* buffer, struct stat statb
                 fprintf (log_file, "case PUSH + NUM\n");
                 printf ("Кладу в стэк %lf\n", *(double*)(buffer + position + sizeof (char)));
                 error = stack_push (stk, *(double*)(buffer + position + sizeof (char)));
-                printf ("%lf\n", *((char*) stk->data + position));
+                printf ("%lf\n", *(double*)((char*) stk->data + position));
                 position += sizeof (double);
                 if (error)
                     return PROC_STACK_PUSH_ERROR;
                 break;
             case PUSH + REG:
                 fprintf (log_file, "case PUSH + REG\n");
-                printf ("Номер регистра  = %d\n", *(char*)(buffer + position + sizeof (char)));
-                printf ("Кладу в стэк %lf\n", reg[*(char*)(buffer + position + sizeof (char))]);
-                error = stack_push (stk, reg[*(char*)(buffer + position + sizeof (char))]);
+                printf ("Номер регистра  = %d\n", *(buffer + position + sizeof (char)));
+                printf ("Кладу в стэк %lf\n", reg[(int) *(buffer + position + sizeof (char))]);
+                error = stack_push (stk, reg[(int) *(buffer + position + sizeof (char))]);
                 position += sizeof (char);
                 if (error)
                     return PROC_STACK_PUSH_ERROR;
@@ -94,7 +95,7 @@ enum Proc_error calculations (struct Stack* stk, char* buffer, struct stat statb
                 error = stack_pop (stk, &a);
                 printf ("%d\n", *(buffer + position));
                 printf ("Номер регистра = %d\n", *(buffer + position + sizeof (char)));
-                reg[*(buffer + position + sizeof (char))] = a;
+                reg[(int) *(buffer + position + sizeof (char))] = a;
                 position += sizeof (char);
                 if (error)
                     return PROC_STACK_PUSH_ERROR;
@@ -153,10 +154,20 @@ enum Proc_error calculations (struct Stack* stk, char* buffer, struct stat statb
                 break;
             case JMP + NUM:
                 fprintf (log_file, "case JMP\n");
-                printf ("position ==== %d\n", position);
-                position = *(double*)(buffer + position + sizeof (char));
-                position--;
-                printf ("position == %d\n", position);
+                printf ("position ==== %zu\n", position);
+                position = (size_t) *(double*)(buffer + position + sizeof (char));
+                printf ("position == %zu\n", position);
+                break;
+                //
+// call label <=> push current address
+//                jump label
+//
+// ret <=> pop
+//         jump to it
+//
+            case CALL:
+                fprintf (log_file, "case OUT\n");
+                error = stack_push (stk, *(double*)(buffer + position + sizeof (char)));
                 break;
             case OUT:
                 fprintf (log_file, "case OUT\n");
@@ -177,26 +188,6 @@ enum Proc_error calculations (struct Stack* stk, char* buffer, struct stat statb
     return PROC_NO_ERROR;
 }
 
-/*enum Proc_error processing_file (const char* NAME, char** buffer, FILE** code_file, double** array, struct stat* statbuf)
-{
-    PRINT_BEGIN();
-    enum Proc_error proc_error = PROC_NO_ERROR;
-    proc_error = open_file_and_fill_stat (NAME, code_file, statbuf);
-    if (proc_error != PROC_NO_ERROR)
-        return proc_error;
-    char* temp = (char*) calloc (statbuf->st_size, sizeof (char));
-    if (temp == NULL)
-        return PROC_CALLOC_FAIL;
-    *buffer = temp;
-    printf ("%d\n", fread (*buffer, sizeof (char), statbuf->st_size, *code_file));
-    *array = (double*) calloc (num_of_double, sizeof (double));
-    proc_error = char_to_double (*buffer, *array);
-    if (proc_error != PROC_NO_ERROR)
-        return proc_error;
-    PRINT_END();
-    return PROC_NO_ERROR;
-}*/
-
 enum Proc_error processing_file (const char* NAME, char** buffer, FILE** code_file, struct stat* statbuf)
 {
     PRINT_BEGIN();
@@ -204,39 +195,14 @@ enum Proc_error processing_file (const char* NAME, char** buffer, FILE** code_fi
     proc_error = open_file_and_fill_stat (NAME, code_file, statbuf);
     if (proc_error != PROC_NO_ERROR)
         return proc_error;
-    char* temp = (char*) calloc (statbuf->st_size, sizeof (char));
+    char* temp = (char*) calloc ((size_t) statbuf->st_size, sizeof (char));
     if (temp == NULL)
         return PROC_CALLOC_FAIL;
     *buffer = temp;
-    printf ("%d\n", fread (*buffer, sizeof (char), statbuf->st_size, *code_file));
+    printf ("%zu\n", fread (*buffer, sizeof (char), (size_t) statbuf->st_size, *code_file));
     PRINT_END();
     return PROC_NO_ERROR;
 }
-
-/*enum Proc_error char_to_double (char* buffer, double* array)
-{
-    PRINT_BEGIN();
-    char* ptr_to_remains = NULL;
-    size_t pass = 0;
-    size_t num_if_overflow = num_of_double;
-    while (*buffer != '\0')
-    {
-        if (pass >= num_of_double)
-        {
-            array = (double*) realloc (array, num_if_overflow * 2);
-            num_if_overflow *= 2;
-        }
-        array[pass] = strtod (buffer, &ptr_to_remains);
-        printf ("%.2lf\n\n", array[pass]);
-        buffer = ptr_to_remains;
-        pass++;
-        while (isspace(*buffer))
-            buffer++;
-    }
-    return PROC_NO_ERROR;
-}*/
-
-
 
 const char* proc_get_error (enum Proc_error error)
 {

@@ -1,3 +1,4 @@
 do.exe
-assemble_file.txt
+*.txt
 calcul.txt
+do

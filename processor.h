@@ -20,8 +20,18 @@ enum Cmds
     OUT = 7,
     IN = 8,
     JMP = 9,
+    CALL = 10,
+    RET = 11,
     HLT = -1
 };
+
+//
+// call label <=> push current address
+//                jump label
+//
+// ret <=> pop
+//         jump to it
+//
 
 enum Reg
 {

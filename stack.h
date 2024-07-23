@@ -8,6 +8,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdint.h>
+#include <math.h>
 
 //======================================================================================================
 
@@ -40,7 +41,7 @@ enum StkError
     STK_POISON = 11,
     STK_LEFT_CANARY_ERROR = 12,
     STK_RIGHT_CANARY_ERROR = 13,
-    STK_LEFT_STR_CANARY_ERROR = 14, // поизоном не заполняется при реаллокации
+    STK_LEFT_STR_CANARY_ERROR = 14,
     STK_RIGHT_STR_CANARY_ERROR = 15,
     STK_DATA_HASH_ERROR = 16,
     STK_STR_HASH_ERROR = 17
@@ -88,5 +89,7 @@ enum StkError          stk_realloc_up     (struct Stack* stk);
 uint32_t               get_hash           (const uint8_t* key, size_t length);
 
 void                   stack_dump         (struct Stack *stk);
+
+int                    compare_doubles    (double x, double y);
 
 #endif // STACK_H

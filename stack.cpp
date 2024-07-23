@@ -16,6 +16,8 @@ const size_t BASIC_CAPACITY = 50;
 
 const stk_element POISON = 666;
 
+const double limit = 1e-6;
+
 const int COEFF_REALLOC_DOWN = 4;
 
 const can_type CANARY_MAIN = 0xBADDEDBADDEDBAD;
@@ -242,6 +244,11 @@ void stk_print_error (enum StkError error)
     PRINT_END();
 }
 
+int compare_doubles (double x, double y)
+{
+    return fabs(x - y) < limit;
+}
+
 enum StkError stk_verifier (struct Stack* stk)
 {
     PRINT_BEGIN();
@@ -264,11 +271,11 @@ enum StkError stk_verifier (struct Stack* stk)
         return STK_SIZE_BIGGER_CAPACITY;
 
     for (size_t i = 0; i < stk->capacity - stk->size; i++)
-        if (stk->data[stk->size + i] != POISON)
+        if (compare_doubles (stk->data[stk->size + i], POISON) == 0)
             return STK_NO_POISON;
 
     for (size_t i = 0; i < stk->size; i++)
-        if (stk->data[i] == POISON)
+        if (compare_doubles (stk->data[i], POISON) == 1)
             return STK_POISON;
 
     if (*((can_type*) stk->data - 1) != CANARY_MAIN)
@@ -276,8 +283,8 @@ enum StkError stk_verifier (struct Stack* stk)
 
     if (*(can_type*) ((stk_element*) stk->data + stk->capacity) != CANARY_MAIN)
         return STK_RIGHT_CANARY_ERROR;
-    uint32_t prev_stk_hash = stk->stk_hash;
-    uint32_t prev_data_hash = stk->data_hash;
+    uint32_t prev_stk_hash = (uint32_t) stk->stk_hash;
+    uint32_t prev_data_hash = (uint32_t) stk->data_hash;
     stk->stk_hash = stk->data_hash = 0;
     if (prev_stk_hash != get_hash ((uint8_t*) stk, sizeof (Stack)))
     {
