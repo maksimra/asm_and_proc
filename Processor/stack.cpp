@@ -15,7 +15,7 @@ const int COEFF_REALLOC_DOWN = 4;
 
 const can_type CANARY_MAIN = 0xBADDEDBADDEDBAD;
 
-const uint32_t hash_seed = 0xABFDDCAE;
+const uint32_t hash_seed = 0xABFDDCAE; //ЗАМЕНИТЬ ФАЙЛ НА СТЭК ИЗ stack папки!!!!
 
 //==================================================================================================
 
@@ -43,8 +43,6 @@ enum StkError stack_ctor (struct Stack *stk, size_t capacity)
 
     stk->canary_left = CANARY_MAIN;
     stk->canary_right = CANARY_MAIN;
-
-    filler (stk->data, stk->capacity, &POISON, sizeof (POISON));
 
     stk->stk_hash = stk->data_hash = 0;
     stk->stk_hash = get_hash ((uint8_t*) stk, sizeof (Stack));
@@ -181,16 +179,6 @@ enum StkError stack_clear (struct Stack *stk)
     stk->data_hash = get_hash ((uint8_t*) stk->data, stk->capacity * sizeof (stk_element));
     PRINT_END();
     return STK_NO_ERROR;
-}
-
-void filler (void* begin, size_t num_elem, const void* ptr_to_elem, size_t size_elem)
-{
-    PRINT_BEGIN();
-    for (size_t i = 0; i < num_elem; i++)
-    {
-        memcpy ((char*) begin + i * size_elem, ptr_to_elem, size_elem);
-    }
-    PRINT_END();
 }
 
 enum StkError stack_pop (struct Stack *stk, stk_element* elem)
