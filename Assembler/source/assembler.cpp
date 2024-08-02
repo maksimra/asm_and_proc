@@ -44,7 +44,7 @@ int search_label (const char* line, size_t size, Stack* labels)
 {
     for (size_t label_number = 0; label_number < labels->size; label_number++)
     {
-        if (strncmp (line, (char*) labels->data + label_number * labels->elem_size, size) == 0)
+        if (strncmp (line, ((Label*)(char*) labels->data + label_number * labels->elem_size)->name, size) == 0)
         {
             return (int) label_number;
         }
@@ -59,8 +59,6 @@ enum AsmError make_assem_file (Stack* labels, char** lines, size_t num_line)
 
     AsmError asm_error = ASM_NO_ERROR;
     StkError stk_error = STK_NO_ERROR;
-
-    stack_ctor (labels, sizeof(Label));
 
     FILE *assemble_file = fopen ("asm_output.txt", "wb");
 
@@ -97,8 +95,6 @@ enum AsmError make_assem_file (Stack* labels, char** lines, size_t num_line)
 termination:
     fclose (assemble_file);
     free (buffer);
-    labels_name_dtor (labels);
-    stack_dtor (labels);
     PRINT_END();
     return asm_error;
 }
@@ -114,17 +110,25 @@ bool try_label (Stack* labels, const char* cur_line, size_t position, StkError* 
     const char* colon = strchr (cur_line, ':');
     if (colon != NULL)
     {
-        Label new_label = {};
-        new_label.name = (char*) calloc (MAX_SYMB, sizeof (char));
-        new_label.len = (size_t) (colon - cur_line);
-        strncpy (new_label.name, cur_line, new_label.len);
-        new_label.ip = position;
+        int label_number = search_label (cur_line, (size_t) (colon - cur_line), labels);
+        if (label_number != LABEL_IS_NEW)
+        {
+            return true;
+        }
+        else
+        {
+            Label new_label = {};
+            new_label.name = (char*) calloc (MAX_SYMB, sizeof (char));
+            new_label.len = (size_t) (colon - cur_line);
+            strncpy (new_label.name, cur_line, new_label.len);
+            new_label.ip = position;
 
-        *error = stack_push (labels, &new_label);
-        if (*error)
-            return false;
+            *error = stack_push (labels, &new_label);
+            if (*error)
+                return false;
 
-        return true;
+            return true;
+        }
     }
     return false;
 }
@@ -157,6 +161,8 @@ bool try_command (Stack* labels, const char* cur_line, char* buffer, size_t* pos
                 if (try_command_label (labels, cur_line, buffer, position))
                     return true;
 
+            (*position)++;
+
             return true;
         }
     }
@@ -188,7 +194,7 @@ bool try_command_label (Stack* labels, const char* cur_line, char* buffer, size_
         {
             size_t value = 0;
             memcpy (buffer + *position, &value, sizeof (size_t));
-            position += sizeof (size_t);
+            *position += sizeof (size_t);
         }
         return true;
     }

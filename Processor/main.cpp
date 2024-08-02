@@ -4,12 +4,14 @@
 
 size_t BASIC_CAPACITY = 50;
 
+const int necessary_n_args = 2;
+
 int main (const int argc, const char* argv[])
 {
     enum Proc_error proc_error = PROC_NO_ERROR;
     enum StkError stk_error = STK_NO_ERROR;
     enum ArgsError args_error = ARGS_NO_ERROR;
-    args_error = check_args (argc, argv);
+    args_error = args_check (argc, argv, necessary_n_args);
     proc_print_error (proc_error);
     struct Stack stk = {};
     struct stat statbuf = {};

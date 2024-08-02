@@ -1,7 +1,12 @@
 #include "stack.hpp"
+#include "print_in_log.hpp"
+#include "compare_doubles.hpp"
 
-#define PRINT_BEGIN() fprintf (log_file, "begin: %s.\n", __PRETTY_FUNCTION__)
-#define PRINT_END() fprintf (log_file, "success end: %s\n", __PRETTY_FUNCTION__)
+#define STK_HASH       stk->stk_hash
+#define DATA_HASH      stk->data_hash
+#define TOTAL_CAPACITY new_capacity * sizeof(stk_element) + 2 * sizeof (CANARY_MAIN)
+#define SIZE           stk->size
+#define CAPACITY       stk->capacity
 
 static FILE* log_file = stderr;
 
@@ -15,52 +20,51 @@ const int COEFF_REALLOC_DOWN = 4;
 
 const can_type CANARY_MAIN = 0xBADDEDBADDEDBAD;
 
-const uint32_t hash_seed = 0xABFDDCAE; //ЗАМЕНИТЬ ФАЙЛ НА СТЭК ИЗ stack папки!!!!
+const uint32_t hash_seed = 0xABFDDCAE;
 
 //==================================================================================================
 
-enum StkError stack_set_log_file (FILE* file)
+void stack_set_log_file (FILE* file)
 {
-    if (file == NULL)
-        return STK_NULL_PTR_LOG;
     log_file = file;
-    return STK_NO_ERROR;
 }
 
-enum StkError stack_ctor (struct Stack *stk, size_t capacity)
+StkError stack_ctor (Stack *stk, size_t capacity)
 {
     PRINT_BEGIN();
 
     if (stk->data != NULL)
-        return STK_SECOND_CTOR;
+        return STK_ERROR_SECOND_CTOR;
 
     if (capacity <= 0)
-        return STK_NEGATIVE_CAPACITY;
+        return STK_ERROR_NEGATIVE_CAPACITY;
 
     stk_resize (stk, capacity);
-    stk->size = 0;
-    stk->capacity = capacity;
+    SIZE = 0;
+    CAPACITY = capacity;
 
     stk->canary_left = CANARY_MAIN;
     stk->canary_right = CANARY_MAIN;
 
-    stk->stk_hash = stk->data_hash = 0;
-    stk->stk_hash = get_hash ((uint8_t*) stk, sizeof (Stack));
-    stk->data_hash = get_hash ((uint8_t*) stk->data, stk->capacity * sizeof (stk_element));
+    filler (stk->data, CAPACITY, &POISON, sizeof (POISON));
+
+    STK_HASH = DATA_HASH = 0;
+    STK_HASH = get_hash ((uint8_t*) stk, sizeof (Stack));
+    DATA_HASH = get_hash ((uint8_t*) stk->data, CAPACITY * sizeof (stk_element));
 
     PRINT_END();
     return STK_NO_ERROR;
 }
 
-enum StkError stack_dtor (struct Stack *stk)
+StkError stack_dtor (Stack *stk)
 {
     PRINT_BEGIN();
-    enum StkError error = STK_NO_ERROR;
+    StkError error = STK_NO_ERROR;
     error = stk_verifier (stk);
 
-    if (error == STK_STR_HASH_ERROR    ||
-        error == STK_LEFT_CANARY_ERROR ||
-        error == STK_RIGHT_CANARY_ERROR)
+    if (error == STK_ERROR_STR_HASH    ||
+        error == STK_ERROR_LEFT_CANARY ||
+        error == STK_ERROR_RIGHT_CANARY)
     {
         return error;
     }
@@ -68,26 +72,26 @@ enum StkError stack_dtor (struct Stack *stk)
     free ((char*) stk->data - sizeof(CANARY_MAIN));
 
     stk->data = NULL;
-    stk->capacity = 0;
-    stk->size = 0;
-    stk->stk_hash = stk->data_hash = 0;
+    CAPACITY = 0;
+    SIZE = 0;
+    STK_HASH = DATA_HASH = 0;
     PRINT_END();
     return STK_NO_ERROR;
 }
 
-void stack_dump (struct Stack *stk)
+void stack_dump (Stack *stk)
 {
-    for (size_t i = 0; i < stk->size; i++)
+    for (size_t i = 0; i < SIZE; i++)
     {
-        fprintf (log_file, "%zu: <%lf> ", i, stk->data[i]);
+        PRINT ("%zu: <%lf> ", i, stk->data[i]);
     }
 
-    fprintf (log_file, "capacity = %zu\n"
-                       "size = %zu\n", stk->capacity, stk->size);
-    fprintf (log_file, "left canary = 0x%jx\n", *(can_type*)((char*) stk->data - sizeof (can_type))); // define or inline func
-    fprintf (log_file, "right canary = 0x%jx\n", *(can_type*)((char*) stk->data + stk->capacity * sizeof (stk_element)));
-    fprintf (log_file, "struct hash = 0x%jx\n"
-                       "data hash = 0x%jx\n", stk->data_hash, stk->stk_hash);
+    PRINT ("capacity = %zu\n"
+           "size = %zu\n", CAPACITY, SIZE);
+    PRINT ("left canary = 0x%jx\n",  *(can_type*)((char*) stk->data - sizeof (can_type)));
+    PRINT ("right canary = 0x%jx\n", *(can_type*)((char*) stk->data + CAPACITY * sizeof (stk_element)));
+    PRINT ("struct hash = 0x%jx\n"
+           "data hash = 0x%jx\n", STK_HASH, DATA_HASH);
 }
 
 uint32_t get_hash (const uint8_t* key, size_t length)
@@ -106,226 +110,245 @@ uint32_t get_hash (const uint8_t* key, size_t length)
     return hash;
 }
 
-enum StkError stack_push (struct Stack *stk, stk_element elem)
+StkError stack_push (Stack *stk, stk_element elem)
 {
     PRINT_BEGIN();
-    enum StkError error = STK_NO_ERROR;
+    StkError error = STK_NO_ERROR;
     error = stk_verifier (stk);
     if (error != STK_NO_ERROR)
         return error;
     error = stk_realloc_up (stk);
     if (error != STK_NO_ERROR)
         return error;
-    *(stk->data + stk->size) = elem;
-    ++(stk->size);
-    stk->stk_hash = stk->data_hash = 0;
-    stk->stk_hash = get_hash ((uint8_t*) stk, sizeof (Stack));
-    stk->data_hash = get_hash ((uint8_t*) stk->data, stk->capacity * sizeof (stk_element));
+    stk->data[SIZE] = elem;
+    ++(SIZE);
+    STK_HASH = DATA_HASH = 0;
+    STK_HASH = get_hash ((uint8_t*) stk, sizeof (Stack));
+    DATA_HASH = get_hash ((uint8_t*) stk->data, CAPACITY * sizeof (stk_element));
     PRINT_END();
     return STK_NO_ERROR;
 }
 
-enum StkError stk_realloc_up (struct Stack* stk)
+StkError stk_realloc_up (Stack* stk)
 {
     PRINT_BEGIN();
-    if (stk->size >= stk->capacity)
+    if (SIZE >= CAPACITY)
     {
-        return stk_resize (stk, stk->capacity * 2);
+        return stk_resize (stk, CAPACITY * 2);
     }
     return STK_NO_ERROR;
 }
 
-enum StkError stk_resize (struct Stack* stk, size_t new_capacity)
+StkError stk_resize (Stack* stk, size_t new_capacity)
 {
     PRINT_BEGIN();
     stk_element* temp = NULL;
     if (stk->data == NULL)
     {
-        temp = (stk_element*) calloc (1, new_capacity * sizeof(stk_element) + 2 * sizeof (CANARY_MAIN));
+        temp = (stk_element*) calloc (1, TOTAL_CAPACITY);
 
         if (temp == NULL)
-            return STK_REALLOC_FAIL;
+            return STK_ERROR_CALLOC;
 
-        *(can_type*) temp = CANARY_MAIN;
-        *(can_type*)((char*) temp + sizeof (CANARY_MAIN) + new_capacity * sizeof(stk_element)) = CANARY_MAIN;
-        stk->data = (stk_element*)((char*) temp + sizeof (CANARY_MAIN));
+        set_left_canary (temp);
+        set_right_canary (temp, new_capacity);
+        set_data (stk, temp);
     }
     else
     {
-        *(can_type*) (stk->data + stk->capacity) = 0;
+        *(can_type*) (stk->data + CAPACITY) = 0;
 
         temp = (stk_element*) realloc ((char*) stk->data - sizeof (CANARY_MAIN),
-                                        new_capacity * sizeof(stk_element) + 2 * sizeof (CANARY_MAIN));
+                                        TOTAL_CAPACITY);
 
         if (temp == NULL)
-            return STK_REALLOC_FAIL;
+            return STK_ERROR_REALLOC;
 
-        stk->data = (stk_element*)((char*) temp + sizeof (CANARY_MAIN));
-        *(can_type*) (stk->data + new_capacity) = CANARY_MAIN;
+        set_data (stk, temp);
+        set_right_canary (temp, new_capacity);
     }
-    stk->capacity = new_capacity;
-    filler (stk->data + stk->size, stk->capacity - stk->size, &POISON, sizeof (POISON));
+    CAPACITY = new_capacity;
+    filler (stk->data + SIZE, CAPACITY - SIZE, &POISON, sizeof (POISON));
     PRINT_END();
     return STK_NO_ERROR;
 }
 
-enum StkError stack_clear (struct Stack *stk)
+void set_left_canary (stk_element* new_ptr)
+{
+    *(can_type*) new_ptr = CANARY_MAIN;
+}
+
+void set_right_canary (stk_element* new_ptr, size_t new_capacity)
+{
+    *(can_type*)((char*) new_ptr + sizeof (CANARY_MAIN) + new_capacity * sizeof(stk_element)) = CANARY_MAIN;
+}
+
+void set_data (Stack* stk, stk_element* new_ptr)
+{
+    stk->data = (stk_element*)((char*) new_ptr + sizeof (CANARY_MAIN));
+}
+
+StkError stack_clear (Stack *stk)
 {
     PRINT_BEGIN();
-    filler (stk->data, stk->capacity, &POISON, sizeof (POISON));
-    stk->size = 0;
-    stk->stk_hash = stk->data_hash = 0;
-    stk->stk_hash = get_hash ((uint8_t*) stk, sizeof (Stack));
-    stk->data_hash = get_hash ((uint8_t*) stk->data, stk->capacity * sizeof (stk_element));
+    filler (stk->data, CAPACITY, &POISON, sizeof (POISON));
+    SIZE = 0;
+    STK_HASH = DATA_HASH = 0;
+    STK_HASH = get_hash ((uint8_t*) stk, sizeof (Stack));
+    DATA_HASH = get_hash ((uint8_t*) stk->data, CAPACITY * sizeof (stk_element));
     PRINT_END();
     return STK_NO_ERROR;
 }
 
-enum StkError stack_pop (struct Stack *stk, stk_element* elem)
+void filler (void* begin, size_t num_elem, const void* ptr_to_elem, size_t size_elem)
 {
     PRINT_BEGIN();
-    enum StkError error = STK_NO_ERROR;
+    for (size_t i = 0; i < num_elem; i++)
+    {
+        memcpy ((char*) begin + i * size_elem, ptr_to_elem, size_elem);
+    }
+    PRINT_END();
+}
+
+StkError stack_pop (Stack *stk, stk_element* elem)
+{
+    PRINT_BEGIN();
+    StkError error = STK_NO_ERROR;
     error = stk_verifier (stk);
     if (error != STK_NO_ERROR)
-        return error; // define в лог чтобы писал
+        return error;
 
-    if (stk->size <= 0)
-        return STK_POP_FAIL;
+    if (SIZE <= 0)
+        return STK_ERROR_POP;
 
-    stk_element* ptr_to_last_element = stk->data + stk->size - 1;
+    stk_element* ptr_to_last_element = stk->data + SIZE - 1;
 
     if (elem != NULL)
         *elem = *ptr_to_last_element;
 
     *ptr_to_last_element = POISON;
-    --(stk->size);
+    --(SIZE);
     error = stk_realloc_down (stk);
     if (error != STK_NO_ERROR)
         return error;
-    stk->stk_hash = stk->data_hash = 0;
-    stk->stk_hash = get_hash ((uint8_t*) stk, sizeof (Stack));
-    stk->data_hash = get_hash ((uint8_t*) stk->data, stk->capacity * sizeof (stk_element));
+    STK_HASH = DATA_HASH = 0;
+    STK_HASH = get_hash ((uint8_t*) stk, sizeof (Stack));
+    DATA_HASH = get_hash ((uint8_t*) stk->data, CAPACITY * sizeof (stk_element));
     PRINT_END();
     return STK_NO_ERROR;
 }
 
-enum StkError stk_realloc_down (struct Stack *stk)
+StkError stk_realloc_down (Stack *stk)
 {
     PRINT_BEGIN();
-    if (stk->size < stk->capacity / COEFF_REALLOC_DOWN)
+    if (SIZE < CAPACITY / COEFF_REALLOC_DOWN)
     {
-        return stk_resize (stk, stk->capacity / 2);
+        return stk_resize (stk, CAPACITY / 2);
     }
+    PRINT_END();
     return STK_NO_ERROR;
 }
 
-void stk_print_error (enum StkError error)
+void stk_print_error (StkError error)
 {
-    PRINT_BEGIN();
-    fprintf (log_file, "%s\n", stk_get_error (error));
-    PRINT_END();
+    PRINT ("%s\n", stk_get_error (error));
 }
 
-int compare_doubles (double x, double y)
-{
-    return fabs(x - y) < limit;
-}
-
-enum StkError stk_verifier (struct Stack* stk)
+StkError stk_verifier (Stack* stk)
 {
     PRINT_BEGIN();
     if (stk == NULL)
-        return STK_NULL_PTR_STK;
+        return STK_ERROR_NULL_PTR_STK;
 
-    if (stk->capacity <= 0)
-        return STK_NEGATIVE_CAPACITY;
+    if (CAPACITY <= 0)
+        return STK_ERROR_NEGATIVE_CAPACITY;
 
     if (stk->data == NULL)
-        return STK_NULL_PTR_DATA;
+        return STK_ERROR_NULL_PTR_DATA;
 
     if (stk->canary_left != CANARY_MAIN)
-        return STK_LEFT_STR_CANARY_ERROR;
+        return STK_ERROR_LEFT_STR_CANARY;
 
     if (stk->canary_right != CANARY_MAIN)
-        return STK_RIGHT_STR_CANARY_ERROR;
+        return STK_ERROR_RIGHT_STR_CANARY;
 
-    if (stk->size > stk->capacity)
-        return STK_SIZE_BIGGER_CAPACITY;
+    if (SIZE > CAPACITY)
+        return STK_ERROR_SIZE_BIGGER_CAPACITY;
 
-    for (size_t i = 0; i < stk->capacity - stk->size; i++)
-        if (compare_doubles (stk->data[stk->size + i], POISON) == 0)
-            return STK_NO_POISON;
+    for (size_t i = 0; i < CAPACITY - SIZE; i++)
+        if (compare_doubles (stk->data[SIZE + i], POISON))
+            return STK_ERROR_NO_POISON;
 
-    for (size_t i = 0; i < stk->size; i++)
-        if (compare_doubles (stk->data[i], POISON) == 1)
-            return STK_POISON;
+    for (size_t i = 0; i < SIZE; i++)
+        if (compare_doubles (stk->data[i], POISON) == 0)
+            return STK_ERROR_POISON;
 
     if (*((can_type*) stk->data - 1) != CANARY_MAIN)
-        return STK_LEFT_CANARY_ERROR;
+        return STK_ERROR_LEFT_CANARY;
 
-    if (*(can_type*) (stk->data + stk->capacity) != CANARY_MAIN)
-        return STK_RIGHT_CANARY_ERROR;
-    uint32_t prev_stk_hash = (uint32_t) stk->stk_hash;
-    uint32_t prev_data_hash = (uint32_t) stk->data_hash;
-    stk->stk_hash = stk->data_hash = 0;
+    if (*(can_type*) (stk->data + CAPACITY) != CANARY_MAIN)
+        return STK_ERROR_RIGHT_CANARY;
+
+    uint32_t prev_stk_hash = (uint32_t) STK_HASH;
+    uint32_t prev_data_hash = (uint32_t) DATA_HASH;
+    STK_HASH = DATA_HASH = 0;
+
     if (prev_stk_hash != get_hash ((uint8_t*) stk, sizeof (Stack)))
     {
-        return STK_STR_HASH_ERROR;
+        return STK_ERROR_STR_HASH;
     }
 
-    if (prev_data_hash != get_hash ((uint8_t*) stk->data, stk->capacity * sizeof (stk_element)))
+    if (prev_data_hash != get_hash ((uint8_t*) stk->data, CAPACITY * sizeof (stk_element)))
     {
-        return STK_DATA_HASH_ERROR;
+        return STK_ERROR_DATA_HASH;
     }
 
-    stk->stk_hash = prev_stk_hash;
-    stk->data_hash = prev_data_hash;
+    STK_HASH = prev_stk_hash;
+    DATA_HASH = prev_data_hash;
 
     return STK_NO_ERROR;
 
 }
 
-const char* stk_get_error (enum StkError error)
+const char* stk_get_error (StkError error)
 {
     switch (error)
     {
         case STK_NO_ERROR:
             return "Stack: Ошибок в работе функций не выявлено.";
-        case STK_REALLOC_FAIL:
+        case STK_ERROR_REALLOC:
             return "Stack: Ошибка в работе функции realloc.";
-        case STK_POP_FAIL:
+        case STK_ERROR_POP:
             return "Stack: Ошибка в работе функции pop.";
-        case STK_CALLOC_FAIL:
+        case STK_ERROR_CALLOC:
             return "Stack: Ошибка в выделении памяти (calloc).";
-        case STK_NEGATIVE_CAPACITY:
+        case STK_ERROR_NEGATIVE_CAPACITY:
             return "Stack: Отрицательное значение capacity.";
-        case STK_SECOND_CTOR:
+        case STK_ERROR_SECOND_CTOR:
             return "Stack: Stack уже был создан.";
-        case STK_NULL_PTR_LOG:
-            return "Stack: Вместо адреса log_file передан нулевой указатель.";
-        case STK_NULL_PTR_DATA:
+        case STK_ERROR_NULL_PTR_DATA:
             return "Stack: Нулевой указатель stk->data";
-        case STK_NULL_PTR_STK:
+        case STK_ERROR_NULL_PTR_STK:
             return "Stack: Передан нулевой указатель на стэк.";
-        case STK_SIZE_BIGGER_CAPACITY:
+        case STK_ERROR_SIZE_BIGGER_CAPACITY:
             return "Stack: Size больше, чем capacity.";
-        case STK_NO_POISON:
+        case STK_ERROR_NO_POISON:
             return "Stack: Пустые ячейки не POISON.";
-        case STK_POISON:
+        case STK_ERROR_POISON:
             return "Stack: Ячейка(-и) POISON.";
-        case STK_LEFT_CANARY_ERROR:
+        case STK_ERROR_LEFT_CANARY:
             return "Stack: Кто-то съел левую канарейку.";
-        case STK_RIGHT_CANARY_ERROR:
+        case STK_ERROR_RIGHT_CANARY:
             return "Stack: Кто-то съел правую канарейку.";
-        case STK_LEFT_STR_CANARY_ERROR:
+        case STK_ERROR_LEFT_STR_CANARY:
             return "Stack: Испортили левую канарейку структуры.";
-        case STK_RIGHT_STR_CANARY_ERROR:
+        case STK_ERROR_RIGHT_STR_CANARY:
             return "Stack: Испортили правую канарейку структуры.";
-        case STK_STR_HASH_ERROR:
+        case STK_ERROR_STR_HASH:
             return "Stack: Повреждён хэш структуры.";
-        case STK_DATA_HASH_ERROR:
+        case STK_ERROR_DATA_HASH:
             return "Stack: Повреждён хэш data.";
         default:
-            return "Stack: Куда делся мой enum ошибок?";
+            return "Stack: Нужной ошибки не найдено...";
     }
 }

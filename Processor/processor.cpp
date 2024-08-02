@@ -49,8 +49,9 @@ enum Proc_error calculations (struct Stack* stk, char* buffer, struct stat statb
     {
         memcpy (&a, (char*) stk->data + stk->size, sizeof (stk_element));
         printf ("Крайнее число стэка: %g\n", a);
+        printf ("buffer[position] == %d\n", buffer[position]);
         // маску делать + if, который обрабатывает аргумент
-        switch (buffer[position] )
+        switch (buffer[position])
         {
             case IN:
                 printf ("Я в IN!!!\n");
@@ -144,6 +145,7 @@ enum Proc_error calculations (struct Stack* stk, char* buffer, struct stat statb
                 fprintf (log_file, "case JMP\n");
                 printf ("position ==== %zu\n", position);
                 memcpy (&position, buffer + position + sizeof (char), sizeof (size_t));
+                position--; // костыль из-за инкрементирования, потом пофикшу
                 printf ("position == %zu\n", position);
                 break;
             case CALL:

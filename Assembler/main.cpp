@@ -9,24 +9,19 @@ const int necessary_n_args = 2;
 
 int main (const int argc, const char* argv[])
 {
-    enum AsmError      asm_error       = ASM_NO_ERROR;
-    enum ArgsError     args_error      = ARGS_NO_ERROR;
-    enum ProcFileError proc_file_error = PROC_FILE_NO_ERROR;
+    AsmError      asm_error       = ASM_NO_ERROR;
+    ArgsError     args_error      = ARGS_NO_ERROR;
+    ProcFileError proc_file_error = PROC_FILE_NO_ERROR;
+    StkError      stk_error       = STK_NO_ERROR;
 
-    FILE* log_file_check_args = fopen ("log_file_check_args.txt", "w");
-    FILE* log_file_asm        = fopen ("log_file_asm.txt",        "w");
-    FILE* log_file_proc_file  = fopen ("log_file_proc_file.txt",  "w");
-    FILE* log_file_stack      = fopen ("log_file_stack.txt",      "w");
+    FILE* log_file = fopen ("log_file.txt", "w");
 
-    PRINT_IF_NOT_OPEN (log_file_stack,      "log_file_stack.txt");
-    PRINT_IF_NOT_OPEN (log_file_check_args, "log_file_check_args.txt");
-    PRINT_IF_NOT_OPEN (log_file_asm,        "log_file_asm.txt");
-    PRINT_IF_NOT_OPEN (log_file_proc_file,  "log_file_proc_file.txt");
+    PRINT_IF_NOT_OPEN (log_file, "log_file.txt");
 
-    args_set_log_file      (log_file_check_args);  // pass NULL if you don't want
-    asm_set_log_file       (log_file_asm);         // to write to the log file
-    proc_file_set_log_file (log_file_proc_file);
-    stack_set_log_file     (log_file_stack);
+    args_set_log_file      (log_file);  // pass NULL if you don't want
+    asm_set_log_file       (log_file);  // to write to the log file
+    proc_file_set_log_file (log_file);
+    stack_set_log_file     (log_file);
 
     args_error = args_check (argc, argv, necessary_n_args);
     if (args_print_if_error (args_error))
@@ -41,17 +36,21 @@ int main (const int argc, const char* argv[])
         return EXIT_FAILURE;
 
     Stack labels = {};
+    stk_error = stack_ctor (&labels, sizeof(Label));
+    stk_print_error (stk_error);
     asm_error = make_assem_file (&labels, ptr_to_lines, number_of_lines);
     asm_print_error (asm_error);
 
     asm_error = make_assem_file (&labels, ptr_to_lines, number_of_lines);
     asm_print_error (asm_error);
+
+    labels_name_dtor (&labels);
+    stk_error = stack_dtor (&labels);
+    stk_print_error (stk_error);
 
     free (ptr_to_lines[0]);
     free (ptr_to_lines);
 
-    fclose (log_file_check_args);
-    fclose (log_file_asm);
-    fclose (log_file_proc_file);
+    fclose (log_file);
     return EXIT_SUCCESS;
 }

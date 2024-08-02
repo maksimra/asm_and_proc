@@ -9,28 +9,30 @@
 #include <assert.h>
 #include <stdlib.h>
 
-enum Cmds
+enum Cmd
 {
-    PUSH = 1,
-    POP  = 2,
-    ADD  = 3,
-    SUB  = 4,
-    MUL  = 5,
-    DIV  = 6,
-    OUT  = 7,
-    IN   = 8,
-    JMP  = 9,
-    CALL = 10,
-    RET  = 11,
-    HLT  = -1
+    NOT_CMD = 0,
+    PUSH    = 1,
+    POP     = 2,
+    ADD     = 3,
+    SUB     = 4,
+    MUL     = 5,
+    DIV     = 6,
+    OUT     = 7,
+    IN      = 8,
+    JMP     = 9,
+    CALL    = 10,
+    RET     = 11,
+    HLT     = 12
 };
 
 enum Reg
 {
-    RAX = 1,
-    RBX = 2,
-    RCX = 3,
-    RDX = 4
+    NOT_REG = 0,
+    RAX     = 1,
+    RBX     = 2,
+    RCX     = 3,
+    RDX     = 4
 };
 
 enum Args

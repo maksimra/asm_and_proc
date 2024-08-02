@@ -110,6 +110,11 @@ struct Label
     size_t ip;
 };
 
+struct Assem
+{
+    
+};
+
 void          asm_set_log_file  (FILE* file);
 void          asm_print_error   (enum AsmError error);
 const char*   asm_get_error     (enum AsmError error);
