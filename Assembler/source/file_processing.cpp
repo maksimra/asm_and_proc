@@ -13,14 +13,17 @@ void proc_file_set_log_file (FILE* file)
     log_file = file;
 }
 
-ProcFileError process_file (char*** ptr_to_lines, const char* name_of_file, size_t* number_lines)
+ProcFileError process_file (char*** ptr_to_lines, const char* name_of_file, FILE* file, size_t* number_lines)
 {
     PRINT_BEGIN();
+
+    if (file == NULL)
+        return PROC_FILE_ERROR_PTR_TO_FILE;
 
     ProcFileError error = PROC_FILE_NO_ERROR;
     size_t size_of_file = 0;
     char* buffer = NULL;
-    error = read_file_count_size (name_of_file, &size_of_file, &buffer);
+    error = read_file_count_size (name_of_file, file, &size_of_file, &buffer);
     if (error != PROC_FILE_NO_ERROR)
         goto free_memory;
 
@@ -42,7 +45,7 @@ out:
     return error;
 }
 
-ProcFileError read_file_count_size (const char* name_of_file, size_t* size, char** buffer)
+ProcFileError read_file_count_size (const char* name_of_file, FILE* file, size_t* size, char** buffer)
 {
     PRINT_BEGIN();
     struct stat statbuf = {};
@@ -51,13 +54,11 @@ ProcFileError read_file_count_size (const char* name_of_file, size_t* size, char
 
     *size = (size_t) statbuf.st_size;
 
-    FILE* file = fopen (name_of_file, "rb");
     if (file == NULL)
-        return PROC_FILE_ERROR_FOPEN;
+        return PROC_FILE_ERROR_PTR_TO_FILE;
 
     *buffer = (char*) calloc (*size, sizeof (char));
     size_t fread_size = fread (*buffer, sizeof (char), *size, file);
-    fclose (file);
     if (fread_size != *size)
         return PROC_FILE_ERROR_FREAD;
 
@@ -146,6 +147,8 @@ const char* proc_file_get_error (ProcFileError error)
             return "ProcFile: Ошибка чтения из файла функцией fread.";
         case PROC_FILE_ERROR_CALLOC:
             return "ProcFile: Ошибка выделения памяти функцией calloc.";
+        case PROC_FILE_ERROR_PTR_TO_FILE:
+            return "ProcFile: Передан нулевой указатель на файл.";
         default:
             return "ProcFile: Нужной ошибки не найдено...";
     }

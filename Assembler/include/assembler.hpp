@@ -10,6 +10,7 @@
 #include <ctype.h>
 #include <assert.h>
 #include "void_stack.hpp"
+#include "file_processing.hpp"
 
 enum AsmError
 {
@@ -25,7 +26,11 @@ enum AsmError
     ASM_ERROR_CALLOC         = 9,
     ASM_ERROR_NOT_CMD        = 10,
     ASM_ERROR_READ           = 11,
-    ASM_ERROR_STK            = 12
+    ASM_ERROR_STK            = 12,
+    ASM_ERROR_SETVBUF        = 13,
+    ASM_ERROR_NULL_PTR_ASM   = 14,
+    ASM_ERROR_PROC_FILE      = 15,
+    ASM_ERROR_FWRITE         = 16
 };
 
 enum Cmd
@@ -112,13 +117,18 @@ struct Label
 
 struct Assem
 {
-    
+    FILE* input_file;
+    char** ptr_to_lines;
+    size_t number_of_lines;
+    char* output_buffer;
+    FILE* output_file;
+    Stack labels;
 };
 
 void          asm_set_log_file  (FILE* file);
 void          asm_print_error   (enum AsmError error);
 const char*   asm_get_error     (enum AsmError error);
-enum AsmError make_assem_file   (Stack* labels, char** lines, size_t num_line);
+AsmError      make_assem_file   (Stack* labels, char** lines, size_t num_line, char* buffer, size_t* position);
 int           search_label      (const char* line, size_t size, Label* labels, int number_of_labels);
 Reg           search_reg        (const char* line, size_t size);
 Cmd           search_command    (const char* line, size_t size);
@@ -128,6 +138,9 @@ bool          try_label         (Stack* labels, const char* cur_line, size_t pos
 bool          try_command_label (Stack* labels, const char* cur_line, char* buffer, size_t* position);
 bool          try_command_digit (const char* cur_line, char* buffer, size_t* position);
 bool          try_command_reg   (const char* cur_line, char* buffer, size_t* position);
-void          labels_name_dtor (Stack* labels);
+void          labels_name_dtor  (Stack* labels);
+AsmError      asm_ctor          (Assem* asm_struct, const char* name_of_input_file, StkError* stk_error, ProcFileError* proc_file_error);
+AsmError      assembly          (Assem* asm_struct);
+AsmError      asm_dtor          (Assem* asm_struct);
 
 #endif // ASSEMBLER_HPP

@@ -2,6 +2,7 @@
 #include "../include/print_in_log.hpp"
 #include "../include/void_stack.hpp"
 #include "../include/skip_space.hpp"
+#include <assert.h>
 
 static FILE* log_file = stderr;
 
@@ -52,7 +53,7 @@ int search_label (const char* line, size_t size, Stack* labels)
     return LABEL_IS_NEW;
 }
 
-enum AsmError make_assem_file (Stack* labels, char** lines, size_t num_line)
+AsmError make_assem_file (Stack* labels, char** lines, size_t num_line, char* buffer, size_t* position)
 {
     PRINT_BEGIN();
     assert (lines);
@@ -60,21 +61,13 @@ enum AsmError make_assem_file (Stack* labels, char** lines, size_t num_line)
     AsmError asm_error = ASM_NO_ERROR;
     StkError stk_error = STK_NO_ERROR;
 
-    FILE *assemble_file = fopen ("asm_output.txt", "wb");
-
-    if (assemble_file == NULL)
-        return ASM_ERROR_FOPEN;
-
-    char* buffer = (char*) calloc (num_line, sizeof (double) + sizeof (char));
-    size_t position = 0;
-
     for (size_t n_line = 0; n_line < num_line; n_line++)
     {
         const char* cur_line = lines[n_line];
         skip_space (&cur_line);
 
-        if (try_command (labels, cur_line, buffer, &position) ||
-            try_label (labels, cur_line, position, &stk_error))
+        if (try_command (labels, cur_line, buffer, position) ||
+            try_label (labels, cur_line, *position, &stk_error))
         {
             if (stk_error)
             {
@@ -90,11 +83,8 @@ enum AsmError make_assem_file (Stack* labels, char** lines, size_t num_line)
             asm_error = ASM_ERROR_NOT_CMD;
         }
     }
-    fwrite (buffer, sizeof (char), position, assemble_file);
 
 termination:
-    fclose (assemble_file);
-    free (buffer);
     PRINT_END();
     return asm_error;
 }
@@ -246,6 +236,111 @@ bool try_command_reg (const char* cur_line, char* buffer, size_t* position)
     return false;
 }
 
+AsmError asm_ctor (Assem* asm_struct, const char* name_of_input_file, StkError* stk_error, ProcFileError* proc_file_error)
+{
+    assert (asm_struct);
+    AsmError asm_error = ASM_NO_ERROR;
+    if (asm_struct == NULL)
+        return ASM_ERROR_NULL_PTR_ASM;
+
+    char* temp_output_buffer = NULL;
+    FILE* temp_file = fopen (name_of_input_file, "rb");
+    if (temp_file == NULL)
+        return ASM_ERROR_FOPEN;
+    asm_struct->input_file = temp_file;
+
+    temp_file = fopen ("asm_output.txt", "wb");
+    if (temp_file == NULL)
+    {
+        asm_error = ASM_ERROR_FOPEN;
+        goto close_file;
+    }
+    asm_struct->output_file = temp_file;
+
+    *stk_error = stack_ctor (&(asm_struct->labels), sizeof (Label));
+    if (*stk_error)
+    {
+        asm_error = ASM_ERROR_STK;
+        goto close_all_files;
+    }
+
+    *proc_file_error = process_file (&(asm_struct->ptr_to_lines), name_of_input_file, asm_struct->input_file, &(asm_struct->number_of_lines));
+    if (*proc_file_error)
+    {
+        asm_error = ASM_ERROR_PROC_FILE;
+        goto full_termination;
+    }
+    temp_output_buffer = (char*) calloc (asm_struct->number_of_lines, sizeof (double) + sizeof (char));
+    if (temp_output_buffer == NULL)
+    {
+        asm_error = ASM_ERROR_CALLOC;
+        goto full_termination;
+    }
+    asm_struct->output_buffer = temp_output_buffer;
+
+    goto out;
+
+full_termination:
+    stack_dtor (&(asm_struct->labels));
+close_all_files:
+    fclose (asm_struct->output_file);
+close_file:
+    fclose (asm_struct->input_file);
+out:
+    return asm_error;
+}
+
+AsmError assembly (Assem* asm_struct)
+{
+    assert (asm_struct);
+
+    if (asm_struct == NULL)
+        return ASM_ERROR_NULL_PTR_ASM;
+
+    AsmError error = ASM_NO_ERROR;
+    size_t position = 0;
+    error = make_assem_file (&(asm_struct->labels), asm_struct->ptr_to_lines, asm_struct->number_of_lines, asm_struct->output_buffer, &position);
+    if (error)
+    {
+        return error;
+    }
+
+    position = 0;
+    error = make_assem_file (&(asm_struct->labels), asm_struct->ptr_to_lines, asm_struct->number_of_lines, asm_struct->output_buffer, &position);
+    if (error)
+    {
+        return error;
+    }
+    size_t return_value = fwrite (asm_struct->output_buffer, sizeof (char), position, asm_struct->output_file);
+    if (return_value != position)
+        return ASM_ERROR_FWRITE;
+
+    return ASM_NO_ERROR;
+}
+
+AsmError asm_dtor (Assem* asm_struct)
+{
+    assert (asm_struct);
+    AsmError asm_error = ASM_NO_ERROR;
+
+    if (asm_struct == NULL)
+        return ASM_ERROR_NULL_PTR_ASM;
+
+    fclose (asm_struct->input_file);
+    fclose (asm_struct->output_file);
+    labels_name_dtor (&(asm_struct->labels));
+    StkError stk_error = stack_dtor (&(asm_struct->labels));
+    if (stk_error)
+        asm_error = ASM_ERROR_STK;
+
+    asm_struct->number_of_lines = 0;
+    free (asm_struct->output_buffer);
+    free ((asm_struct->ptr_to_lines)[0]);
+    free (asm_struct->ptr_to_lines);
+
+    return asm_error;
+}
+
 void asm_print_error (enum AsmError error)
 {
     PRINT ("%s\n", asm_get_error (error));
@@ -282,6 +377,14 @@ const char* asm_get_error (enum AsmError error)
             return "Asm: Некорректная запись в файле.";
         case ASM_ERROR_STK:
             return "Asm: Ошибка работы стэка.";
+        case ASM_ERROR_SETVBUF:
+            return "Asm: Ошибка отключения буферизации.";
+        case ASM_ERROR_NULL_PTR_ASM:
+            return "Asm: Передан нулевой указатель на Assem.";
+        case ASM_ERROR_PROC_FILE:
+            return "Asm: Ошибка обработки файла.";
+        case ASM_ERROR_FWRITE:
+            return "Asm: Ошибка работы функции fwrite.";
         default:
             return "Ass: Нужной ошибки не найдено...";
     }
