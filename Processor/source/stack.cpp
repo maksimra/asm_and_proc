@@ -1,6 +1,6 @@
-#include "stack.hpp"
-#include "print_in_log.hpp"
-#include "compare_doubles.hpp"
+#include "../include/stack.hpp"
+#include "../include/print_in_log.hpp"
+#include "../include/compare_doubles.hpp"
 
 #define STK_HASH       stk->stk_hash
 #define DATA_HASH      stk->data_hash

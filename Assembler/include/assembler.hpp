@@ -14,23 +14,23 @@
 
 enum AsmError
 {
-    ASM_NO_ERROR             = 0,
-    ASM_ERROR_NULL_PTR_FILE  = 1,
-    ASM_ERROR_FOPEN          = 2,
-    ASM_ERROR_NULL_PTR_LOG   = 3,
-    ASM_ERROR_SSCANF         = 4,
-    ASM_ERROR_FSEEK          = 5,
-    ASM_ERROR_FTELL          = 6,
-    ASM_ERROR_STAT           = 7,
-    ASM_ERROR_STRCHR         = 8,
-    ASM_ERROR_CALLOC         = 9,
-    ASM_ERROR_NOT_CMD        = 10,
-    ASM_ERROR_READ           = 11,
-    ASM_ERROR_STK            = 12,
-    ASM_ERROR_SETVBUF        = 13,
-    ASM_ERROR_NULL_PTR_ASM   = 14,
-    ASM_ERROR_PROC_FILE      = 15,
-    ASM_ERROR_FWRITE         = 16
+    ASM_NO_ERROR              = 0,
+    ASM_ERROR_NULL_PTR_FILE   = 1,
+    ASM_ERROR_FOPEN           = 2,
+    ASM_ERROR_NULL_PTR_LOG    = 3,
+    ASM_ERROR_SSCANF          = 4,
+    ASM_ERROR_FSEEK           = 5,
+    ASM_ERROR_FTELL           = 6,
+    ASM_ERROR_STAT            = 7,
+    ASM_ERROR_STRCHR          = 8,
+    ASM_ERROR_CALLOC          = 9,
+    ASM_ERROR_NOT_CMD         = 10,
+    ASM_ERROR_READ            = 11,
+    ASM_ERROR_STK             = 12,
+    ASM_ERROR_SETVBUF         = 13,
+    ASM_ERROR_NULL_PTR_STRUCT = 14,
+    ASM_ERROR_PROC_FILE       = 15,
+    ASM_ERROR_FWRITE          = 16
 };
 
 enum Cmd
@@ -126,8 +126,8 @@ struct Assem
 };
 
 void          asm_set_log_file  (FILE* file);
-void          asm_print_error   (enum AsmError error);
-const char*   asm_get_error     (enum AsmError error);
+void          asm_print_error   (AsmError error);
+const char*   asm_get_error     (AsmError error);
 AsmError      make_assem_file   (Stack* labels, char** lines, size_t num_line, char* buffer, size_t* position);
 int           search_label      (const char* line, size_t size, Label* labels, int number_of_labels);
 Reg           search_reg        (const char* line, size_t size);
@@ -139,7 +139,7 @@ bool          try_command_label (Stack* labels, const char* cur_line, char* buff
 bool          try_command_digit (const char* cur_line, char* buffer, size_t* position);
 bool          try_command_reg   (const char* cur_line, char* buffer, size_t* position);
 void          labels_name_dtor  (Stack* labels);
-AsmError      asm_ctor          (Assem* asm_struct, const char* name_of_input_file, StkError* stk_error, ProcFileError* proc_file_error);
+AsmError      asm_ctor          (Assem* asm_struct, const char* name_of_input_file);
 AsmError      assembly          (Assem* asm_struct);
 AsmError      asm_dtor          (Assem* asm_struct);
 

@@ -128,7 +128,7 @@ ProcFileError make_ptr_to_lines (size_t number_lines, char* buffer, char*** line
 
 void proc_file_print_error (ProcFileError error)
 {
-        PRINT ("%s\n", proc_file_get_error (error));
+    PRINT ("%s\n", proc_file_get_error (error));
 }
 
 const char* proc_file_get_error (ProcFileError error)

@@ -20,8 +20,6 @@ int main (const int argc, const char* argv[])
     if (return_value)
     {
         asm_print_error (ASM_ERROR_SETVBUF);
-        fclose (log_file);
-        return EXIT_FAILURE;
     }
 
     args_set_log_file      (log_file);  // pass NULL if you don't want
@@ -38,7 +36,7 @@ int main (const int argc, const char* argv[])
 
     Assem asm_struct = {};
     const char* name_of_input_file = argv[1];
-    asm_error = asm_ctor (&asm_struct, name_of_input_file, &stk_error, &proc_file_error);
+    asm_error = asm_ctor (&asm_struct, name_of_input_file);
     if (asm_error)
     {
         asm_print_error (asm_error);
@@ -57,7 +55,7 @@ int main (const int argc, const char* argv[])
         return EXIT_FAILURE;
     }
 
-    asm_dtor (&asm_struct);
+    asm_error = asm_dtor (&asm_struct);
     if (asm_error)
     {
         asm_print_error (asm_error);

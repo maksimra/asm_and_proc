@@ -236,12 +236,14 @@ bool try_command_reg (const char* cur_line, char* buffer, size_t* position)
     return false;
 }
 
-AsmError asm_ctor (Assem* asm_struct, const char* name_of_input_file, StkError* stk_error, ProcFileError* proc_file_error)
+AsmError asm_ctor (Assem* asm_struct, const char* name_of_input_file)
 {
     assert (asm_struct);
-    AsmError asm_error = ASM_NO_ERROR;
+    AsmError      asm_error       = ASM_NO_ERROR;
+    ProcFileError proc_file_error = PROC_FILE_NO_ERROR;
+    StkError      stk_error       = STK_NO_ERROR;
     if (asm_struct == NULL)
-        return ASM_ERROR_NULL_PTR_ASM;
+        return ASM_ERROR_NULL_PTR_STRUCT;
 
     char* temp_output_buffer = NULL;
     FILE* temp_file = fopen (name_of_input_file, "rb");
@@ -249,7 +251,7 @@ AsmError asm_ctor (Assem* asm_struct, const char* name_of_input_file, StkError* 
         return ASM_ERROR_FOPEN;
     asm_struct->input_file = temp_file;
 
-    temp_file = fopen ("asm_output.txt", "wb");
+    temp_file = fopen ("../Processor/asm_output.txt", "wb");
     if (temp_file == NULL)
     {
         asm_error = ASM_ERROR_FOPEN;
@@ -257,16 +259,18 @@ AsmError asm_ctor (Assem* asm_struct, const char* name_of_input_file, StkError* 
     }
     asm_struct->output_file = temp_file;
 
-    *stk_error = stack_ctor (&(asm_struct->labels), sizeof (Label));
-    if (*stk_error)
+    stk_error = stack_ctor (&(asm_struct->labels), sizeof (Label));
+    if (stk_error)
     {
+        stk_print_error (stk_error);
         asm_error = ASM_ERROR_STK;
         goto close_all_files;
     }
 
-    *proc_file_error = process_file (&(asm_struct->ptr_to_lines), name_of_input_file, asm_struct->input_file, &(asm_struct->number_of_lines));
-    if (*proc_file_error)
+    proc_file_error = process_file (&(asm_struct->ptr_to_lines), name_of_input_file, asm_struct->input_file, &(asm_struct->number_of_lines));
+    if (proc_file_error)
     {
+        proc_file_print_error (proc_file_error);
         asm_error = ASM_ERROR_PROC_FILE;
         goto full_termination;
     }
@@ -295,7 +299,7 @@ AsmError assembly (Assem* asm_struct)
     assert (asm_struct);
 
     if (asm_struct == NULL)
-        return ASM_ERROR_NULL_PTR_ASM;
+        return ASM_ERROR_NULL_PTR_STRUCT;
 
     AsmError error = ASM_NO_ERROR;
     size_t position = 0;
@@ -324,7 +328,7 @@ AsmError asm_dtor (Assem* asm_struct)
     AsmError asm_error = ASM_NO_ERROR;
 
     if (asm_struct == NULL)
-        return ASM_ERROR_NULL_PTR_ASM;
+        return ASM_ERROR_NULL_PTR_STRUCT;
 
     fclose (asm_struct->input_file);
     fclose (asm_struct->output_file);
@@ -379,8 +383,8 @@ const char* asm_get_error (enum AsmError error)
             return "Asm: Ошибка работы стэка.";
         case ASM_ERROR_SETVBUF:
             return "Asm: Ошибка отключения буферизации.";
-        case ASM_ERROR_NULL_PTR_ASM:
-            return "Asm: Передан нулевой указатель на Assem.";
+        case ASM_ERROR_NULL_PTR_STRUCT:
+            return "Asm: Передан нулевой указатель на структуру.";
         case ASM_ERROR_PROC_FILE:
             return "Asm: Ошибка обработки файла.";
         case ASM_ERROR_FWRITE:

@@ -26,29 +26,29 @@ FLAGS := -D _DEBUG -ggdb3 -std=c++17 -O0 -Wall -Wextra -Weffc++ \
 		 null,object-size,return,returns-nonnull-attribute,shift,$\
 		 signed-integer-overflow,undefined,unreachable,vla-bound,vptr
 
-output: $(BUILD)/taylor.o $(program_OBJ)
-	@g++ $(program_OBJ) $(BUILD)/taylor.o $(FLAGS) -o $(BUILD)/output
+output: $(BUILD) $(BUILD)/main.o $(program_OBJ)
+	@g++ $(program_OBJ) $(BUILD)/main.o $(FLAGS) -o $(BUILD)/output
 
-$(BUILD)/parser.o: source/parser.cpp
-	@g++ $(FLAGS) -c source/parser.cpp -o $(BUILD)/parser.o
+$(BUILD):
+	@mkdir $(BUILD)
+
+$(BUILD)/stack.o: source/stack.cpp
+	@g++ $(FLAGS) -c source/stack.cpp -o $(BUILD)/stack.o
+
+$(BUILD)/file_processing.o: source/file_processing.cpp
+	@g++ $(FLAGS) -c source/file_processing.cpp -o $(BUILD)/file_processing.o
 
 $(BUILD)/compare_doubles.o: source/compare_doubles.cpp
 	@g++ $(FLAGS) -c source/compare_doubles.cpp -o $(BUILD)/compare_doubles.o
 
-$(BUILD)/print_svg.o: source/print_svg.cpp
-	@g++ $(FLAGS) -c source/print_svg.cpp -o $(BUILD)/print_svg.o
+$(BUILD)/processor.o: source/processor.cpp
+	@g++ $(FLAGS) -c source/processor.cpp -o $(BUILD)/processor.o
 
 $(BUILD)/check_args.o: source/check_args.cpp
 	@g++ $(FLAGS) -c source/check_args.cpp -o $(BUILD)/check_args.o
 
-$(BUILD)/dif_operations.o: source/dif_operations.cpp
-	@g++ $(FLAGS) -c source/dif_operations.cpp -o $(BUILD)/dif_operations.o
-
-$(BUILD)/diff.o: source/diff.cpp
-	@g++ $(FLAGS) -c source/diff.cpp -o $(BUILD)/diff.o
-
-$(BUILD)/taylor.o: taylor.cpp
-	@g++ $(FLAGS) -c taylor.cpp -o $(BUILD)/taylor.o
+$(BUILD)/main.o: main.cpp
+	@g++ $(FLAGS) -c main.cpp -o $(BUILD)/main.o
 
 clean:
 	rm $(BUILD)/*.o $(BUILD)/output
