@@ -33,4 +33,4 @@ make
 objects/output "asm_output.txt"
 ```
 ### Example:
-![alt text](img/example_asm_proc.png)
+![alt text](img/example_assembly.png)
