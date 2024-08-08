@@ -66,9 +66,13 @@ AsmError make_assem_file (Stack* labels, char** lines, size_t num_line, char* bu
         const char* cur_line = lines[n_line];
         skip_space (&cur_line);
 
-        if (try_command (labels, cur_line, buffer, position) ||
+        if (try_command (labels, cur_line, buffer, position, &asm_error) ||
             try_label (labels, cur_line, *position, &stk_error))
         {
+            if (asm_error)
+            {
+                return asm_error;
+            }
             if (stk_error)
             {
                 stk_print_error (stk_error);
@@ -123,7 +127,7 @@ bool try_label (Stack* labels, const char* cur_line, size_t position, StkError* 
     return false;
 }
 
-bool try_command (Stack* labels, const char* cur_line, char* buffer, size_t* position)
+bool try_command (Stack* labels, const char* cur_line, char* buffer, size_t* position, AsmError* error)
 {
     size_t len_of_command = 0;
     if (isalpha (*cur_line))
@@ -143,6 +147,10 @@ bool try_command (Stack* labels, const char* cur_line, char* buffer, size_t* pos
                 if (try_command_reg (cur_line, buffer, position))
                     return true;
 
+            if (CMD_ARRAY[(int) command].has_ram)
+                if (try_command_ram (cur_line, buffer, position, error))
+                    return true;
+
             if (CMD_ARRAY[(int) command].has_digit)
                 if (try_command_digit (cur_line, buffer, position))
                     return true;
@@ -159,6 +167,50 @@ bool try_command (Stack* labels, const char* cur_line, char* buffer, size_t* pos
     return false;
 }
 
+bool try_command_ram (const char* cur_line, char* buffer, size_t* position, AsmError* error)
+{
+    if (*cur_line == '[')
+    {
+        cur_line++;
+        bool point_was = false;
+
+        if (isdigit (*cur_line))
+        {
+            double value = NAN;
+            sscanf (cur_line, "%lf", &value);
+            buffer[*position] |= MASK_RAM;
+            (*position)++;
+            memcpy (buffer + *position, &value, sizeof (double));
+            *position += sizeof (double);
+
+            do
+            {
+                cur_line++;
+                if (*cur_line == '.' && point_was == false)
+                {
+                    cur_line++;
+                    point_was = true;
+                }
+
+            } while (isdigit (*cur_line));
+
+            if (*cur_line != ']')
+            {
+                *error = ASM_ERROR_RAM;
+                return false;
+            }
+
+            return true;
+        }
+        else
+        {
+            *error = ASM_ERROR_RAM;
+            return false;
+        }
+    }
+    return false;
+}
+
 bool try_command_label (Stack* labels, const char* cur_line, char* buffer, size_t* position)
 {
     size_t len_of_label = 0;
@@ -169,22 +221,22 @@ bool try_command_label (Stack* labels, const char* cur_line, char* buffer, size_
             len_of_label++;
 
         buffer[*position] |= MASK_NUMBER;
-        *position += sizeof (char);
+        (*position)++;
 
         int label_number = search_label (cur_line, len_of_label, labels);
         if (label_number != LABEL_IS_NEW)
         {
-            memcpy (buffer + *position,
-                    &(((Label*)((char*) labels->data + (size_t) label_number * labels->elem_size))->ip),
-                    sizeof (size_t));
+            double ip_in_double = (double)(((Label*)((char*) labels->data +
+                                            (size_t) label_number * labels->elem_size))->ip);
+            memcpy (buffer + *position, &ip_in_double, sizeof (double));
 
-            *position += sizeof (size_t);
+            *position += sizeof (double);
         }
         else
         {
-            size_t value = 0;
-            memcpy (buffer + *position, &value, sizeof (size_t));
-            *position += sizeof (size_t);
+            double value = 0;
+            memcpy (buffer + *position, &value, sizeof (double));
+            *position += sizeof (double);
         }
         return true;
     }
@@ -193,18 +245,14 @@ bool try_command_label (Stack* labels, const char* cur_line, char* buffer, size_
 
 bool try_command_digit (const char* cur_line, char* buffer, size_t* position)
 {
-    size_t len_of_double = 0;
     if (isdigit (*cur_line))
     {
-        len_of_double++;
-        while (isdigit (cur_line[len_of_double]))
-            len_of_double++;
+        double value = NAN;
+        sscanf (cur_line, "%lf", &value);
 
         buffer[*position] |= MASK_NUMBER;
         (*position)++;
 
-        double value = NAN;
-        sscanf (cur_line, "%lf", &value);
         memcpy (buffer + *position, &value, sizeof (double));
         *position += sizeof (double);
 
@@ -389,6 +437,8 @@ const char* asm_get_error (enum AsmError error)
             return "Asm: Ошибка обработки файла.";
         case ASM_ERROR_FWRITE:
             return "Asm: Ошибка работы функции fwrite.";
+        case ASM_ERROR_RAM:
+            return "Asm: Ошибка синтаксиса обращения к оперативной памяти.";
         default:
             return "Ass: Нужной ошибки не найдено...";
     }

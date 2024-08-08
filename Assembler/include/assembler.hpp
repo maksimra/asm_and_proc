@@ -30,7 +30,8 @@ enum AsmError
     ASM_ERROR_SETVBUF         = 13,
     ASM_ERROR_NULL_PTR_STRUCT = 14,
     ASM_ERROR_PROC_FILE       = 15,
-    ASM_ERROR_FWRITE          = 16
+    ASM_ERROR_FWRITE          = 16,
+    ASM_ERROR_RAM             = 17
 };
 
 enum Cmd
@@ -81,31 +82,32 @@ struct Cmds
     bool has_digit;
     bool has_reg;
     bool has_label;
+    bool has_ram;
     size_t length;
 };
 
 const Cmds CMD_ARRAY[] =
 {
     {NOT_CMD},
-    {PUSH, "PUSH", true,  true,  true, 4},
-    {POP,  "POP",  false, true,  false, 3},
-    {ADD,  "ADD",  false, false, false, 3},
-    {SUB,  "SUB",  false, false, false, 3},
-    {MUL,  "MUL",  false, false, false, 3},
-    {DIV,  "DIV",  false, false, false, 3},
-    {OUT,  "OUT",  false, false, false, 3},
-    {IN,   "IN",   false, false, false, 2},
-    {JMP,  "JMP",  true,  false, true,  3},
-    {CALL, "CALL", true,  false, true,  4},
-    {RET,  "RET",  false, false, false, 3},
-    {HLT,  "HLT",  false, false, false, 3}
+    {PUSH, "PUSH", true,  true,  true,  true,  4},
+    {POP,  "POP",  false, true,  false, true,  3},
+    {ADD,  "ADD",  false, false, false, false, 3},
+    {SUB,  "SUB",  false, false, false, false, 3},
+    {MUL,  "MUL",  false, false, false, false, 3},
+    {DIV,  "DIV",  false, false, false, false, 3},
+    {OUT,  "OUT",  false, false, false, false, 3},
+    {IN,   "IN",   false, false, false, false, 2},
+    {JMP,  "JMP",  true,  false, true,  true,  3},
+    {CALL, "CALL", true,  false, true,  true,  4},
+    {RET,  "RET",  false, false, false, false, 3},
+    {HLT,  "HLT",  false, false, false, false, 3}
 };
 
 enum Mask_arg
 {
-    MASK_RAM    = 1 << 7,
-    MASK_REG    = 1 << 6,
-    MASK_NUMBER = 1 << 5
+    MASK_RAM    = (char) (1 << 7),
+    MASK_REG    = (char) (1 << 6),
+    MASK_NUMBER = (char) (1 << 5)
 };
 
 struct Label
@@ -123,6 +125,7 @@ struct Assem
     char* output_buffer;
     FILE* output_file;
     Stack labels;
+    double* ram;
 };
 
 void          asm_set_log_file  (FILE* file);
@@ -133,11 +136,12 @@ int           search_label      (const char* line, size_t size, Label* labels, i
 Reg           search_reg        (const char* line, size_t size);
 Cmd           search_command    (const char* line, size_t size);
 int           search_label      (const char* line, size_t size, Stack* labels);
-bool          try_command       (Stack* labels, const char* cur_line, char* buffer, size_t* position);
+bool          try_command       (Stack* labels, const char* cur_line, char* buffer, size_t* position, AsmError* error);
 bool          try_label         (Stack* labels, const char* cur_line, size_t position, StkError* error);
 bool          try_command_label (Stack* labels, const char* cur_line, char* buffer, size_t* position);
 bool          try_command_digit (const char* cur_line, char* buffer, size_t* position);
 bool          try_command_reg   (const char* cur_line, char* buffer, size_t* position);
+bool          try_command_ram   (const char* cur_line, char* buffer, size_t* position, AsmError* error);
 void          labels_name_dtor  (Stack* labels);
 AsmError      asm_ctor          (Assem* asm_struct, const char* name_of_input_file);
 AsmError      assembly          (Assem* asm_struct);
