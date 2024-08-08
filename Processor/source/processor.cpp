@@ -1,12 +1,28 @@
 #include "../include/processor.hpp"
 #include "../include/file_processing.hpp"
 #include "../include/print_in_log.hpp"
+#include "../include/ram.hpp"
 
-#define PRINT_AND_RETURN_IF_ERROR(error) if (error) \
-                                         {\
-                                            stk_print_error (error);\
-                                            return PROC_ERROR_STK;\
-                                         }
+#define PRINT_AND_RETURN_IF_ERROR_RAM(error) if (error) \
+                                             { \
+                                                ram_print_error (error); \
+                                                return PROC_ERROR_RAM; \
+                                             }
+
+#define PRINT_AND_RETURN_IF_ERROR_STK(error) if (error) \
+                                             { \
+                                                stk_print_error (error); \
+                                                return PROC_ERROR_STK; \
+                                             }
+
+#define RETURN_IF_ERROR(error) if (error) \
+                               { \
+                                   return error; \
+                               }
+
+#define STK    proc_struct->stk
+
+#define BUFFER proc_struct->input_buffer
 
 static FILE* log_file = stderr;
 
@@ -31,106 +47,77 @@ void proc_print_error (ProcError error)
 ProcError calculations (Proc* proc_struct)
 {
     PRINT_BEGIN();
-    StkError error = STK_NO_ERROR;
+    StkError  stk_error  = STK_NO_ERROR;
+    ProcError proc_error = PROC_NO_ERROR;
+    RAMError  ram_error  = RAM_NO_ERROR;
     stk_element reg[NUM_OF_REG] = {};
-    stk_element num1 = 0;
-    stk_element num2 = 0;
-    for (size_t position = 0; position < proc_struct->file_size; position++)
+    size_t position = 0;
+    while (position < proc_struct->file_size)
     {
-        switch (proc_struct->input_buffer[position])
+        switch ((unsigned char) BUFFER[(int) position])
         {
             case IN:
-                PRINT ("case IN\n");
-                printf ("Enter your double in stack.\n");
-                scanf ("%lf", &num1);
-                error = stack_push (&(proc_struct->stk), num1);
-                PRINT_AND_RETURN_IF_ERROR(error);
+                stk_error = cmd_in (proc_struct, &position);
+                PRINT_AND_RETURN_IF_ERROR_STK (stk_error);
+                break;
+            case PUSH + RAM:
+                proc_error = cmd_push_ram (proc_struct, &position);
+                RETURN_IF_ERROR (proc_error);
                 break;
             case PUSH + NUM:
-                PRINT ("case PUSH + NUM\n");
-                memcpy (&num1, proc_struct->input_buffer + position + sizeof (char), sizeof (double));
-                error = stack_push (&(proc_struct->stk), num1);
-                PRINT_AND_RETURN_IF_ERROR(error);
-                position += sizeof (double);
+                stk_error = cmd_push_num (proc_struct, &position);
+                PRINT_AND_RETURN_IF_ERROR_STK (stk_error);
                 break;
             case PUSH + REG:
-                PRINT ("case PUSH + REG\n");
-                PRINT ("Номер регистра  = %d\n", proc_struct->input_buffer[position + sizeof (char)]);
-                PRINT ("Кладу в стэк %lf\n", reg[(int) proc_struct->input_buffer[position + sizeof (char)]]);
-                error = stack_push (&(proc_struct->stk), reg[(int) proc_struct->input_buffer[position + sizeof (char)]]);
-                position += sizeof (char);
-                PRINT_AND_RETURN_IF_ERROR(error);
+                stk_error = cmd_push_reg (proc_struct, &position, reg);
+                PRINT_AND_RETURN_IF_ERROR_STK (stk_error);
+                break;
+            case POP + RAM:
+                proc_error = cmd_pop_ram (proc_struct, &position);
+                RETURN_IF_ERROR (proc_error);
                 break;
             case POP + REG:
-                PRINT ("case POP + REG\n");
-                error = stack_pop (&(proc_struct->stk), &num1);
-                PRINT_AND_RETURN_IF_ERROR(error);
-                PRINT ("Номер регистра = %d\n", proc_struct->input_buffer[position + sizeof (char)]);
-                reg[(int) proc_struct->input_buffer[position + sizeof (char)]] = num1;
-                position += sizeof (char);
+                stk_error = cmd_pop_reg (proc_struct, &position, reg);
+                PRINT_AND_RETURN_IF_ERROR_STK (stk_error);
                 break;
             case ADD:
-                PRINT ("case ADD\n");
-                error = stack_pop (&(proc_struct->stk), &num1);
-                PRINT_AND_RETURN_IF_ERROR(error);
-                error = stack_pop (&(proc_struct->stk), &num2);
-                PRINT_AND_RETURN_IF_ERROR(error);
-                error = stack_push (&(proc_struct->stk), num1 + num2);
-                PRINT_AND_RETURN_IF_ERROR(error);
+                stk_error = cmd_add (proc_struct, &position);
+                PRINT_AND_RETURN_IF_ERROR_STK (stk_error);
                 break;
             case SUB:
-                PRINT ("case SUB\n");
-                error = stack_pop (&(proc_struct->stk), &num1);
-                PRINT_AND_RETURN_IF_ERROR(error);
-                error = stack_pop (&(proc_struct->stk), &num2);
-                PRINT_AND_RETURN_IF_ERROR(error);
-                error = stack_push (&(proc_struct->stk), num2 - num1);
-                PRINT_AND_RETURN_IF_ERROR (error);
+                stk_error = cmd_sub (proc_struct, &position);
+                PRINT_AND_RETURN_IF_ERROR_STK (stk_error);
                 break;
             case MUL:
-                PRINT ("case MUL\n");
-                error = stack_pop (&(proc_struct->stk), &num1);
-                PRINT_AND_RETURN_IF_ERROR(error);
-                error = stack_pop (&(proc_struct->stk), &num2);
-                PRINT_AND_RETURN_IF_ERROR(error);
-                error = stack_push (&(proc_struct->stk), num1 * num2);
-                PRINT_AND_RETURN_IF_ERROR(error);
+                stk_error = cmd_mul (proc_struct, &position);
+                PRINT_AND_RETURN_IF_ERROR_STK (stk_error);
                 break;
             case DIV:
-                PRINT ("case DIV\n");
-                error = stack_pop (&(proc_struct->stk), &num1);
-                PRINT_AND_RETURN_IF_ERROR(error);
-                error = stack_pop (&(proc_struct->stk), &num2);
-                PRINT_AND_RETURN_IF_ERROR(error);
-                error = stack_push (&(proc_struct->stk), num2 / num1);
-                PRINT_AND_RETURN_IF_ERROR(error);
+                stk_error = cmd_div (proc_struct, &position);
+                PRINT_AND_RETURN_IF_ERROR_STK (stk_error);
                 break;
             case JMP + NUM:
-                PRINT ("case JMP\n");
-                memcpy (&position, proc_struct->input_buffer + position + sizeof (char), sizeof (size_t));
-                position--; // костыль из-за инкрементирования, потом пофикшу (хз, правда, как)
+                cmd_jmp_num (proc_struct, &position);
+                break;
+            case JMP + RAM:
+                ram_error = cmd_jmp_ram (proc_struct, &position);
+                PRINT_AND_RETURN_IF_ERROR_RAM (ram_error);
+                break;
+            case CALL + RAM:
+                proc_error = cmd_call_ram (proc_struct, &position);
+                RETURN_IF_ERROR (proc_error);
                 break;
             case CALL + NUM:
-                PRINT ("case CALL\n");
-                error = stack_push (&(proc_struct->stk), (double) (position + sizeof (size_t) + sizeof (char)));
-                PRINT_AND_RETURN_IF_ERROR(error);
-                memcpy (&position, proc_struct->input_buffer + position + sizeof (char), sizeof (size_t));
-                position--;
+                stk_error = cmd_call_num (proc_struct, &position);
+                PRINT_AND_RETURN_IF_ERROR_STK (stk_error);
                 break;
             case RET:
-                PRINT ("case RET\n");
-                error = stack_pop (&(proc_struct->stk), &num1);
-                PRINT_AND_RETURN_IF_ERROR(error);
-                printf ("num1 == %lf\n", num1);
-                position = (size_t) num1;
-                printf ("buffer[position] == %d\n", proc_struct->input_buffer[position]);
-                position--;
+                stk_error = cmd_ret (proc_struct, &position);
+                PRINT_AND_RETURN_IF_ERROR_STK (stk_error);
                 break;
             case OUT:
-                PRINT ("case OUT\n");
-                error = stack_pop (&(proc_struct->stk), &num1);
-                PRINT_AND_RETURN_IF_ERROR(error);
-                printf ("Результат: %lg\n", num1);
+                stk_error = cmd_out (proc_struct, &position);
+                PRINT_AND_RETURN_IF_ERROR_STK (stk_error);
                 break;
             case HLT:
                 return PROC_NO_ERROR;
@@ -143,9 +130,238 @@ ProcError calculations (Proc* proc_struct)
     return PROC_NO_ERROR;
 }
 
+ProcError cmd_call_ram (Proc* proc_struct, size_t* position)
+{
+    PRINT ("case CALL RAM\n");
+    (*position)++;
+
+    StkError stk_error = stack_push (&(STK), (double) (*position + sizeof (double)));
+    PRINT_AND_RETURN_IF_ERROR_STK (stk_error);
+
+    double array_index_in_double = NAN;
+    memcpy (&array_index_in_double, BUFFER + *position, sizeof (double));
+
+    double ram_value = NAN;
+    RAMError ram_error = ram_get (&(proc_struct->ram),
+                                  &ram_value,
+                                  (size_t) array_index_in_double);
+    PRINT_AND_RETURN_IF_ERROR_RAM (ram_error);
+
+    *position = (size_t) ram_value;
+    return PROC_NO_ERROR;
+}
+
+RAMError cmd_jmp_ram (Proc* proc_struct, size_t* position)
+{
+    PRINT ("case JMP RAM\n");
+    (*position)++;
+
+    double array_index_in_double = NAN;
+    memcpy (&array_index_in_double, BUFFER + *position, sizeof (double));
+
+    double ram_value = NAN;
+    RAMError ram_error = ram_get (&(proc_struct->ram),
+                                  &ram_value,
+                                  (size_t) array_index_in_double);
+    RETURN_IF_ERROR (ram_error);
+
+    *position = (size_t) ram_value;
+    return RAM_NO_ERROR;
+}
+
+ProcError cmd_pop_ram (Proc* proc_struct, size_t* position)
+{
+    PRINT ("case POP RAM\n");
+    (*position)++;
+    double number = NAN;
+    StkError stk_error = stack_pop (&(STK), &number);
+    PRINT_AND_RETURN_IF_ERROR_STK (stk_error);
+
+    double array_index_in_double = NAN;
+    memcpy (&array_index_in_double, BUFFER + *position, sizeof (double));
+
+    RAMError ram_error = ram_push (&(proc_struct->ram),
+                                   &number,
+                                   (size_t) array_index_in_double);
+    PRINT_AND_RETURN_IF_ERROR_RAM (ram_error);
+
+    *position += sizeof (double);
+    return PROC_NO_ERROR;
+}
+
+ProcError cmd_push_ram (Proc* proc_struct, size_t* position)
+{
+    PRINT ("case PUSH RAM\n");
+    (*position)++;
+    double array_index_in_double = NAN;
+    memcpy (&array_index_in_double, BUFFER + *position, sizeof (double));
+
+    double ram_value = NAN;
+    RAMError ram_error = ram_get (&(proc_struct->ram),
+                                  &ram_value,
+                                  (size_t) array_index_in_double);
+    PRINT_AND_RETURN_IF_ERROR_RAM (ram_error);
+
+    StkError stk_error = stack_push (&(STK), ram_value);
+    PRINT_AND_RETURN_IF_ERROR_STK (stk_error);
+
+    (*position) += sizeof (double);
+    return PROC_NO_ERROR;
+}
+
+StkError cmd_out (Proc* proc_struct, size_t* position)
+{
+    PRINT ("case OUT\n");
+    double number = NAN;
+    StkError error = stack_pop (&(STK), &number);
+    RETURN_IF_ERROR(error);
+    printf ("Результат: %lg\n", number);
+    (*position)++;
+    return error;
+}
+
+StkError cmd_ret (Proc* proc_struct, size_t* position)
+{
+    PRINT ("case RET\n");
+    double number = NAN;
+    StkError error = stack_pop (&(STK), &number);
+    RETURN_IF_ERROR (error);
+    *position = (size_t) number;
+    return error;
+}
+
+StkError cmd_call_num (Proc* proc_struct, size_t* position)
+{
+    PRINT ("case CALL\n");
+    (*position)++;
+    StkError error = stack_push (&(STK), (double) (*position + sizeof (double)));
+    RETURN_IF_ERROR (error);
+    double position_in_double = NAN;
+    memcpy (&position_in_double, BUFFER + *position, sizeof (double));
+    *position = (size_t) position_in_double;
+    return error;
+}
+
+void cmd_jmp_num (Proc* proc_struct, size_t* position)
+{
+    PRINT ("case JMP\n");
+    (*position)++;
+    double position_in_double = NAN;
+    memcpy (&position_in_double, BUFFER + *position, sizeof (double));
+    *position = (size_t) position_in_double;
+}
+
+StkError cmd_div (Proc* proc_struct, size_t* position)
+{
+    PRINT ("case DIV\n");
+    double num1 = NAN;
+    StkError error = stack_pop (&(STK), &num1);
+    RETURN_IF_ERROR (error);
+
+    double num2 = NAN;
+    error = stack_pop (&(STK), &num2);
+    RETURN_IF_ERROR (error);
+    error = stack_push (&(STK), num2 / num1);
+    (*position)++;
+    return error;
+}
+
+StkError cmd_mul (Proc* proc_struct, size_t* position)
+{
+    PRINT ("case MUL\n");
+    double num1 = NAN;
+    StkError error = stack_pop (&(STK), &num1);
+    RETURN_IF_ERROR (error);
+
+    double num2 = NAN;
+    error = stack_pop (&(STK), &num2);
+    RETURN_IF_ERROR (error);
+    error = stack_push (&(STK), num1 * num2);
+    (*position)++;
+    return error;
+}
+
+StkError cmd_sub (Proc* proc_struct, size_t* position)
+{
+    PRINT ("case SUB\n");
+    double num1 = NAN;
+    StkError error = stack_pop (&(STK), &num1);
+    RETURN_IF_ERROR (error);
+
+    double num2 = NAN;
+    error = stack_pop (&(STK), &num2);
+    RETURN_IF_ERROR (error);
+    error = stack_push (&(STK), num2 - num1);
+    (*position)++;
+    return error;
+}
+
+StkError cmd_add (Proc* proc_struct, size_t* position)
+{
+    PRINT ("case ADD\n");
+    double num1 = NAN;
+    StkError error = stack_pop (&(STK), &num1);
+    RETURN_IF_ERROR (error);
+
+    double num2 = NAN;
+    error = stack_pop (&(STK), &num2);
+    RETURN_IF_ERROR (error);
+    error = stack_push (&(STK), num1 + num2);
+    (*position)++;
+    return error;
+}
+
+StkError cmd_pop_reg (Proc* proc_struct, size_t* position, double* const reg)
+{
+    PRINT ("case POP REG\n");
+    double number = NAN;
+    StkError error = stack_pop (&(STK), &number);
+    RETURN_IF_ERROR (error);
+
+    (*position)++;
+    PRINT ("Номер регистра = %d\n", BUFFER[*position]);
+    reg[(int) BUFFER[*position]] = number;
+    (*position)++;
+    return error;
+}
+
+StkError cmd_push_reg (Proc* proc_struct, size_t* position, double* const reg)
+{
+    PRINT ("case PUSH REG\n");
+    (*position)++;
+    PRINT ("Номер регистра  = %d\n", BUFFER[*position]);
+    PRINT ("Кладу в стэк %lf\n", reg[(int) BUFFER[*position]]);
+    StkError error = stack_push (&(STK), reg[(int) BUFFER[*position]]);
+    (*position)++;
+    return error;
+}
+
+StkError cmd_push_num (Proc* proc_struct, size_t* position)
+{
+    PRINT ("case PUSH NUM\n");
+    (*position)++;
+    double number = NAN;
+    memcpy (&number, BUFFER + *position, sizeof (double));
+    StkError error = stack_push (&(STK), number);
+    *position += sizeof (double);
+    return error;
+}
+
+StkError cmd_in (Proc* proc_struct, size_t* position)
+{
+    PRINT ("case IN\n");
+    printf ("Enter your double in stack.\n");
+    double number = NAN;
+    scanf ("%lf", &number);
+    StkError error = stack_push (&(STK), number);
+    (*position)++;
+    return error;
+}
+
 ProcError proc_ctor (Proc* proc_struct, const char* name_of_input_file)
 {
     assert (proc_struct);
+    RAMError ram_error = RAM_NO_ERROR;
     StkError stk_error = STK_NO_ERROR;
     if (proc_struct == NULL)
         return PROC_ERROR_NULL_PTR_STRUCT;
@@ -156,7 +372,7 @@ ProcError proc_ctor (Proc* proc_struct, const char* name_of_input_file)
     proc_struct->input_file = temp_file;
 
     ProcFileError proc_file_error = PROC_FILE_NO_ERROR;
-    proc_file_error = read_file_count_size (name_of_input_file, temp_file, &(proc_struct->file_size), &(proc_struct->input_buffer));
+    proc_file_error = read_file_count_size (name_of_input_file, temp_file, &(proc_struct->file_size), &(BUFFER));
     ProcError proc_error = PROC_NO_ERROR;
     if (proc_file_error)
     {
@@ -164,17 +380,26 @@ ProcError proc_ctor (Proc* proc_struct, const char* name_of_input_file)
         proc_error = PROC_ERROR_PROC_FILE;
         goto close_input_file;
     }
-    stk_error = stack_ctor (&(proc_struct->stk), BASIC_CAPACITY);
+    stk_error = stack_ctor (&(STK), BASIC_CAPACITY);
     if (stk_error)
     {
         stk_print_error (stk_error);
         proc_error = PROC_ERROR_STK;
-        goto full_termination;
+        goto free_memory;
+    }
+    ram_error = ram_ctor (&(proc_struct->ram), sizeof (double));
+    if (ram_error)
+    {
+        ram_print_error (ram_error);
+        proc_error = PROC_ERROR_RAM;
+        goto stack_destructor;
     }
     goto out;
 
-full_termination:
-    free (proc_struct->input_buffer);
+stack_destructor:
+    stack_dtor (&(STK));
+free_memory:
+    free (BUFFER);
 close_input_file:
     fclose (proc_struct->input_file);
 out:
@@ -183,16 +408,28 @@ out:
 
 ProcError proc_dtor (Proc* proc_struct)
 {
+    assert (proc_struct != NULL);
+    if (proc_struct == NULL)
+        return PROC_ERROR_NULL_PTR_STRUCT;
+
+    ProcError proc_error = PROC_NO_ERROR;
     fclose (proc_struct->input_file);
     proc_struct->file_size = 0;
-    free (proc_struct->input_buffer);
-    StkError stk_error = stack_dtor (&(proc_struct->stk));
+    free (BUFFER);
+    StkError stk_error = stack_dtor (&(STK));
     if (stk_error)
     {
         stk_print_error (stk_error);
-        return PROC_ERROR_STK;
+        proc_error = PROC_ERROR_STK;
     }
-    return PROC_NO_ERROR;
+    RAMError ram_error = ram_dtor (&(proc_struct->ram));
+    if (ram_error)
+    {
+        ram_print_error (ram_error);
+        proc_error = PROC_ERROR_RAM;
+    }
+
+    return proc_error;
 }
 
 const char* proc_get_error (ProcError error)
@@ -225,6 +462,8 @@ const char* proc_get_error (ProcError error)
             return "Proc: Ошибка обработки файла.";
         case PROC_ERROR_STK:
             return "Proc: Ошибка стэка.";
+        case PROC_ERROR_RAM:
+            return "Proc: Ошибка работы в RAM.";
         default:
             return "Stack: Куда делся мой enum ошибок?";
     }

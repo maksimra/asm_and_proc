@@ -2,6 +2,7 @@
 #define PROCESSOR_HPP
 
 #include "stack.hpp"
+#include "ram.hpp"
 #include <stdio.h>
 #include <math.h>
 #include <ctype.h>
@@ -37,6 +38,7 @@ enum Reg
 
 enum Args
 {
+    RAM = 1 << 7,
     REG = 1 << 6,
     NUM = 1 << 5
 };
@@ -55,7 +57,8 @@ enum ProcError
     PROC_ERROR_SETVBUF         = 11,
     PROC_ERROR_NULL_PTR_STRUCT = 12,
     PROC_ERROR_PROC_FILE       = 13,
-    PROC_ERROR_STK             = 14
+    PROC_ERROR_STK             = 14,
+    PROC_ERROR_RAM             = 15
 };
 
 struct Proc
@@ -64,13 +67,30 @@ struct Proc
     size_t file_size;
     char* input_buffer;
     Stack stk;
+    DynArr ram;
 };
 
-ProcError       calculations             (Proc* proc_struct);
-void            proc_print_error         (ProcError error);
-void            proc_set_log_file        (FILE* file);
-const char*     proc_get_error           (ProcError error);
-ProcError       proc_ctor                (Proc* proc_struct, const char* name_of_input_file);
-ProcError       proc_dtor                (Proc* proc_struct);
+ProcError   calculations      (Proc* proc_struct);
+void        proc_print_error  (ProcError error);
+void        proc_set_log_file (FILE* file);
+const char* proc_get_error    (ProcError error);
+ProcError   proc_ctor         (Proc* proc_struct, const char* name_of_input_file);
+ProcError   proc_dtor         (Proc* proc_struct);
+StkError    cmd_out           (Proc* proc_struct, size_t* position);
+StkError    cmd_ret           (Proc* proc_struct, size_t* position);
+StkError    cmd_call_num      (Proc* proc_struct, size_t* position);
+void        cmd_jmp_num       (Proc* proc_struct, size_t* position);
+StkError    cmd_div           (Proc* proc_struct, size_t* position);
+StkError    cmd_mul           (Proc* proc_struct, size_t* position);
+StkError    cmd_sub           (Proc* proc_struct, size_t* position);
+StkError    cmd_add           (Proc* proc_struct, size_t* position);
+StkError    cmd_pop_reg       (Proc* proc_struct, size_t* position, double* const reg);
+StkError    cmd_push_reg      (Proc* proc_struct, size_t* position, double* const reg);
+StkError    cmd_push_num      (Proc* proc_struct, size_t* position);
+StkError    cmd_in            (Proc* proc_struct, size_t* position);
+ProcError   cmd_call_ram      (Proc* proc_struct, size_t* position);
+RAMError    cmd_jmp_ram       (Proc* proc_struct, size_t* position);
+ProcError   cmd_pop_ram       (Proc* proc_struct, size_t* position);
+ProcError   cmd_push_ram      (Proc* proc_struct, size_t* position);
 
 #endif // PROCESSOR_HPP
