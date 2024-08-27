@@ -3,19 +3,16 @@
 #include "include/file_processing.hpp"
 #include "include/void_stack.hpp"
 
-#define PRINT_IF_NOT_OPEN(file, file_name) if (file == NULL) printf ("%s wasn't open.\n", file_name)
-
-const int necessary_n_args = 2;
-
 int main (const int argc, const char* argv[])
 {
-    AsmError      asm_error       = ASM_NO_ERROR;
+    AsmError      asm_error       = ASM_ERROR_OK;
     ArgsError     args_error      = ARGS_NO_ERROR;
-    ProcFileError proc_file_error = PROC_FILE_NO_ERROR;
-    StkError      stk_error       = STK_NO_ERROR;
+    const int necessary_n_args = 3;
 
     FILE* log_file = fopen ("log_file.txt", "w");
-    PRINT_IF_NOT_OPEN (log_file, "log_file.txt");
+    if (log_file == NULL)
+        printf ("log_file wasn't open.\n");
+
     int return_value = setvbuf (log_file, NULL, _IONBF, 0);
     if (return_value)
     {
@@ -34,9 +31,10 @@ int main (const int argc, const char* argv[])
         return EXIT_FAILURE;
     }
 
-    Assem asm_struct = {};
-    const char* name_of_input_file = argv[1];
-    asm_error = asm_ctor (&asm_struct, name_of_input_file);
+    Assembler asm_struct = {};
+    const char* name_of_input_file  = argv[1];
+    const char* name_of_output_file = argv[2];
+    asm_error = asm_ctor (&asm_struct, name_of_input_file, name_of_output_file);
     if (asm_error)
     {
         asm_print_error (asm_error);
@@ -45,7 +43,7 @@ int main (const int argc, const char* argv[])
         return EXIT_FAILURE;
     }
 
-    asm_error = assembly (&asm_struct);
+    asm_error = asm_assembly (&asm_struct);
     if (asm_error)
     {
         asm_print_error (asm_error);
@@ -59,7 +57,7 @@ int main (const int argc, const char* argv[])
     if (asm_error)
     {
         asm_print_error (asm_error);
-        fprintf (stderr, "Error dtor Assem.\n");
+        fprintf (stderr, "Error dtor Assembler.\n");
         fclose (log_file);
         return EXIT_FAILURE;
     }

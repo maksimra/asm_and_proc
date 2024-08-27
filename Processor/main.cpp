@@ -2,7 +2,7 @@
 #include "include/processor.hpp"
 #include "include/check_args.hpp"
 #include "include/file_processing.hpp"
-#include "include/ram.hpp"
+#include "include/array.hpp"
 
 #define PRINT_IF_NOT_OPEN(file, file_name) if (file == NULL) printf ("%s wasn't open.\n", file_name)
 
@@ -10,7 +10,7 @@ const int necessary_n_args = 2;
 
 int main (const int argc, const char* argv[])
 {
-    ProcError proc_error = PROC_NO_ERROR;
+    ProcError proc_error = PROC_ERROR_OK;
     ArgsError args_error = ARGS_NO_ERROR;
 
     FILE* log_file = fopen ("log_file.txt", "w");
@@ -25,7 +25,7 @@ int main (const int argc, const char* argv[])
     proc_set_log_file      (log_file); // to write to the log file
     stack_set_log_file     (log_file);
     proc_file_set_log_file (log_file);
-    ram_set_log_file       (log_file);
+    arr_set_log_file       (log_file);
 
     args_error = args_check (argc, argv, necessary_n_args);
     if (args_print_if_error (args_error))
@@ -34,7 +34,7 @@ int main (const int argc, const char* argv[])
         return EXIT_FAILURE;
     }
 
-    Proc proc_struct = {};
+    Processor proc_struct = {};
     const char* name_of_input_file = argv[1];
     proc_error = proc_ctor (&proc_struct, name_of_input_file);
     if (proc_error)
@@ -45,7 +45,7 @@ int main (const int argc, const char* argv[])
         return EXIT_FAILURE;
     }
 
-    proc_error = calculations (&proc_struct);
+    proc_error = proc_calculations (&proc_struct);
     if (proc_error)
     {
         proc_print_error (proc_error);

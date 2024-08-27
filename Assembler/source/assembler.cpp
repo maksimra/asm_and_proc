@@ -3,62 +3,105 @@
 #include "../include/void_stack.hpp"
 #include "../include/skip_space.hpp"
 #include <assert.h>
+#include <errno.h>
+#include <string.h>
 
-static FILE* log_file = stderr;
+static FILE* log_file         = stderr;
 
-const int    MAX_SYMB = 20;
+const int    MAX_SYMB         = 20;
 
 const int    NUMBER_OF_LABELS = 10;
 
-const int LABEL_IS_NEW = -1;
+const size_t LABEL_IS_NEW     = SIZE_MAX;
 
-const size_t NUMBER_OF_CMDS = sizeof (CMD_ARRAY) / sizeof (CMD_ARRAY[0]);
+const size_t NUMBER_OF_ROUNDS = 2;
 
-const size_t NUMBER_OF_REGS = sizeof (REG_ARRAY) / sizeof (REG_ARRAY[0]);
+const size_t MAX_LEN_FOR_PATH_TO_FILE = 25;
+
+const RegInfo ASM_REGS[] =
+{
+    {ASM_REG_NONE},
+    {ASM_REG_RAX, "rax"},
+    {ASM_REG_RBX, "rbx"},
+    {ASM_REG_RCX, "rcx"},
+    {ASM_REG_RDX, "rdx"}
+};
+
+const size_t NUMBER_OF_REGS = sizeof (ASM_REGS) / sizeof (ASM_REGS[0]);
+
+const CmdInfo ASM_CMDS[] =
+{
+    {ASM_CMD_NONE},
+    {ASM_CMD_PUSH, "push", true,  true,  true,  true,  4},
+    {ASM_CMD_POP,  "pop",  false, true,  false, true,  3},
+    {ASM_CMD_ADD,  "add",  false, false, false, false, 3},
+    {ASM_CMD_SUB,  "sub",  false, false, false, false, 3},
+    {ASM_CMD_MUL,  "mul",  false, false, false, false, 3},
+    {ASM_CMD_DIV,  "div",  false, false, false, false, 3},
+    {ASM_CMD_OUT,  "out",  false, false, false, false, 3},
+    {ASM_CMD_IN,   "in",   false, false, false, false, 2},
+    {ASM_CMD_JMP,  "jmp",  true,  true,  true,  true,  3},
+    {ASM_CMD_JE,   "je",   true,  true,  true,  true,  2},
+    {ASM_CMD_JA,   "ja",   true,  true,  true,  true,  2},
+    {ASM_CMD_JB,   "jb",   true,  true,  true,  true,  2},
+    {ASM_CMD_JEA,  "jea",  true,  true,  true,  true,  2},
+    {ASM_CMD_JEB,  "jeb",  true,  true,  true,  true,  2},
+    {ASM_CMD_JNE,  "jne",  true,  true,  true,  true,  2},
+    {ASM_CMD_JNA,  "jna",  true,  true,  true,  true,  2},
+    {ASM_CMD_JNB,  "jnb",  true,  true,  true,  true,  2},
+    {ASM_CMD_CALL, "call", true,  false, true,  true,  4},
+    {ASM_CMD_RET,  "ret",  false, false, false, false, 3},
+    {ASM_CMD_HLT,  "hlt",  false, false, false, false, 3}
+    //                       ^      ^      ^      ^
+    //                       |      |      |      |
+    // TYPE OF ARGS:       digit   reg   label   ram
+};
+
+const size_t NUMBER_OF_CMDS = sizeof (ASM_CMDS) / sizeof (ASM_CMDS[0]);
 
 void asm_set_log_file (FILE* file)
 {
     log_file = file;
 }
 
-Cmd search_command (const char* line, size_t size)
+AsmCmd asm_lookup_command (const char* line, size_t size)
 {
     for (size_t n_cmd = 1; n_cmd < NUMBER_OF_CMDS; n_cmd++)
     {
-        if (strncmp (line, CMD_ARRAY[n_cmd].name, size) == 0)
-            return CMD_ARRAY[n_cmd].cmd_enum;
+        if (strncmp (line, ASM_CMDS[n_cmd].name, size) == 0)
+            return ASM_CMDS[n_cmd].cmd_enum;
     }
-    return NOT_CMD;
+    return ASM_CMD_NONE;
 }
 
-Reg search_reg (const char* line, size_t size)
+AsmReg asm_lookup_reg (const char* line, size_t size)
 {
     for (size_t n_reg = 1; n_reg < NUMBER_OF_REGS; n_reg++)
     {
-        if (strncmp (line, REG_ARRAY[n_reg].name, size) == 0)
-            return REG_ARRAY[n_reg].reg_enum;
+        if (strncmp (line, ASM_REGS[n_reg].name, size) == 0)
+            return ASM_REGS[n_reg].reg_enum;
     }
-    return NOT_REG;
+    return ASM_REG_NONE;
 }
 
-int search_label (const char* line, size_t size, Stack* labels)
+size_t asm_lookup_label (const char* line, size_t size, Stack* labels)
 {
     for (size_t label_number = 0; label_number < labels->size; label_number++)
     {
-        if (strncmp (line, ((Label*)(char*) labels->data + label_number * labels->elem_size)->name, size) == 0)
+        if (strncmp (line, ((AsmLabel*) labels->data + label_number)->name, size) == 0)
         {
-            return (int) label_number;
+            return label_number;
         }
     }
     return LABEL_IS_NEW;
 }
 
-AsmError make_assem_file (Stack* labels, char** lines, size_t num_line, char* buffer, size_t* position)
+AsmError asm_make_assem_file (Stack* labels, char** lines, size_t num_line, char* buffer, size_t* position)
 {
     PRINT_BEGIN();
     assert (lines);
 
-    AsmError asm_error = ASM_NO_ERROR;
+    AsmError asm_error = ASM_ERROR_OK;
     StkError stk_error = STK_NO_ERROR;
 
     for (size_t n_line = 0; n_line < num_line; n_line++)
@@ -66,8 +109,8 @@ AsmError make_assem_file (Stack* labels, char** lines, size_t num_line, char* bu
         const char* cur_line = lines[n_line];
         skip_space (&cur_line);
 
-        if (try_command (labels, cur_line, buffer, position, &asm_error) ||
-            try_label (labels, cur_line, *position, &stk_error))
+        if (asm_try_command (labels, cur_line, buffer, position, &asm_error) ||
+            asm_try_label (labels, cur_line, *position, &stk_error))
         {
             if (asm_error)
             {
@@ -77,10 +120,8 @@ AsmError make_assem_file (Stack* labels, char** lines, size_t num_line, char* bu
             {
                 stk_print_error (stk_error);
                 asm_error = ASM_ERROR_STK;
-                goto termination;
+                return asm_error;
             }
-
-            continue;
         }
         else
         {
@@ -88,33 +129,25 @@ AsmError make_assem_file (Stack* labels, char** lines, size_t num_line, char* bu
         }
     }
 
-termination:
     PRINT_END();
     return asm_error;
 }
 
-void labels_name_dtor (Stack* labels)
-{
-    for (size_t label_number = 0; label_number < labels->size; label_number++)
-        free (((Label*)(char*) labels->data + label_number * labels->elem_size)->name);
-}
-
-bool try_label (Stack* labels, const char* cur_line, size_t position, StkError* error)
+bool asm_try_label (Stack* labels, const char* cur_line, size_t position, StkError* error)
 {
     const char* colon = strchr (cur_line, ':');
     if (colon != NULL)
     {
-        int label_number = search_label (cur_line, (size_t) (colon - cur_line), labels);
+        size_t label_number = asm_lookup_label (cur_line, (size_t) (colon - cur_line), labels);
         if (label_number != LABEL_IS_NEW)
         {
             return true;
         }
         else
         {
-            Label new_label = {};
-            new_label.name = (char*) calloc (MAX_SYMB, sizeof (char));
+            AsmLabel new_label = {};
+            new_label.name = cur_line;
             new_label.len = (size_t) (colon - cur_line);
-            strncpy (new_label.name, cur_line, new_label.len);
             new_label.ip = position;
 
             *error = stack_push (labels, &new_label);
@@ -127,36 +160,37 @@ bool try_label (Stack* labels, const char* cur_line, size_t position, StkError* 
     return false;
 }
 
-bool try_command (Stack* labels, const char* cur_line, char* buffer, size_t* position, AsmError* error)
+bool asm_try_command (Stack* labels, const char* cur_line, char* buffer, size_t* position, AsmError* error)
 {
     size_t len_of_command = 0;
     if (isalpha (*cur_line))
     {
-        len_of_command++;
-        while (isalpha(cur_line[len_of_command]))
+        do
+        {
             len_of_command++;
+        } while (isalpha(cur_line[len_of_command]));
 
-        Cmd command = search_command (cur_line, len_of_command);
-        if (command != NOT_CMD)
+        AsmCmd command = asm_lookup_command (cur_line, len_of_command);
+        if (command != ASM_CMD_NONE)
         {
             cur_line += len_of_command;
             skip_space (&cur_line);
 
             buffer[*position] = (char) command;
-            if (CMD_ARRAY[(int) command].has_reg)
-                if (try_command_reg (cur_line, buffer, position))
+            if (ASM_CMDS[(int) command].has_reg)
+                if (asm_try_command_reg (cur_line, buffer, position))
                     return true;
 
-            if (CMD_ARRAY[(int) command].has_ram)
-                if (try_command_ram (cur_line, buffer, position, error))
+            if (ASM_CMDS[(int) command].has_ram)
+                if (asm_try_command_ram (labels, cur_line, buffer, position, error))
                     return true;
 
-            if (CMD_ARRAY[(int) command].has_digit)
-                if (try_command_digit (cur_line, buffer, position))
+            if (ASM_CMDS[(int) command].has_digit)
+                if (asm_try_command_digit (cur_line, buffer, position, error))
                     return true;
 
-            if (CMD_ARRAY[(int) command].has_label)
-                if (try_command_label (labels, cur_line, buffer, position))
+            if (ASM_CMDS[(int) command].has_label)
+                if (asm_try_command_label (labels, cur_line, buffer, position))
                     return true;
 
             (*position)++;
@@ -167,39 +201,24 @@ bool try_command (Stack* labels, const char* cur_line, char* buffer, size_t* pos
     return false;
 }
 
-bool try_command_ram (const char* cur_line, char* buffer, size_t* position, AsmError* error)
+bool asm_try_command_ram (Stack* labels, const char* cur_line, char* buffer, size_t* position, AsmError* error)
 {
     if (*cur_line == '[')
     {
         cur_line++;
-        bool point_was = false;
 
-        if (isdigit (*cur_line))
+        if (asm_try_ram_digit (&cur_line, buffer, position, error) ||
+            asm_try_ram_reg   (&cur_line, buffer, position) ||
+            asm_try_ram_label (labels, &cur_line, buffer, position))
         {
-            double value = NAN;
-            sscanf (cur_line, "%lf", &value);
-            buffer[*position] |= MASK_RAM;
-            (*position)++;
-            memcpy (buffer + *position, &value, sizeof (double));
-            *position += sizeof (double);
-
-            do
-            {
-                cur_line++;
-                if (*cur_line == '.' && point_was == false)
-                {
-                    cur_line++;
-                    point_was = true;
-                }
-
-            } while (isdigit (*cur_line));
+            if (*error)
+                return false;
 
             if (*cur_line != ']')
             {
                 *error = ASM_ERROR_RAM;
                 return false;
             }
-
             return true;
         }
         else
@@ -211,7 +230,101 @@ bool try_command_ram (const char* cur_line, char* buffer, size_t* position, AsmE
     return false;
 }
 
-bool try_command_label (Stack* labels, const char* cur_line, char* buffer, size_t* position)
+bool asm_try_ram_digit (const char** cur_line, char* buffer, size_t* position, AsmError* error)
+{
+    if (isdigit (**cur_line))
+    {
+        buffer[*position] |= (char) ASM_MASK_RAM;
+        (*position)++;
+
+        double value = strtod (*cur_line, NULL);
+        if (errno == ERANGE)
+        {
+            *error = ASM_ERROR_STRTOD;
+            return false;
+        }
+
+        memcpy (buffer + *position, &value, sizeof (double));
+        *position += sizeof (double);
+
+        bool has_point = false;
+        do
+        {
+            (*cur_line)++;
+            if (**cur_line == '.' && has_point == false)
+            {
+                (*cur_line)++;
+                has_point = true;
+            }
+        } while (isdigit (**cur_line));
+
+        return true;
+    }
+    return false;
+}
+
+bool asm_try_ram_reg (const char** cur_line, char* buffer, size_t* position)
+{
+    size_t len_of_reg = 0;
+    if (isalpha (**cur_line))
+    {
+        len_of_reg++;
+        while (isalpha((*cur_line)[len_of_reg]))
+            len_of_reg++;
+
+        AsmReg reg = asm_lookup_reg (*cur_line, len_of_reg);
+        if (reg != ASM_REG_NONE)
+        {
+            (*cur_line) += len_of_reg;
+
+            buffer[*position] |= (char) ASM_MASK_REG;
+            buffer[*position] |= (char) ASM_MASK_RAM;
+            (*position)++;
+            buffer[*position] = (char) reg;
+            (*position)++;
+
+            return true;
+        }
+    }
+    return false;
+}
+
+bool asm_try_ram_label (Stack* labels, const char** cur_line, char* buffer, size_t* position)
+{
+    size_t len_of_label = 0;
+    if (isalpha (**cur_line))
+    {
+        len_of_label++;
+        while (isalpha ((*cur_line)[len_of_label]))
+            len_of_label++;
+
+        buffer[*position] |= (char) ASM_MASK_RAM;
+        (*position)++;
+
+        size_t label_number = asm_lookup_label (*cur_line, len_of_label, labels);
+        if (label_number != LABEL_IS_NEW)
+        {
+            put_ip_in_buffer (labels, label_number, buffer, *position);
+        }
+        else
+        {
+            double value = 0;
+            memcpy (buffer + *position, &value, sizeof (double));
+        }
+        *position += sizeof (double);
+        *cur_line += len_of_label;
+        return true;
+    }
+    return false;
+}
+
+void put_ip_in_buffer (Stack* labels, size_t label_number, char* buffer, size_t position)
+{
+    double label_ip = (double) (((AsmLabel*) labels->data + label_number)->ip);
+    memcpy (buffer + position, &label_ip, sizeof (double));
+}
+
+bool asm_try_command_label (Stack* labels, const char* cur_line, char* buffer, size_t* position)
 {
     size_t len_of_label = 0;
     if (isalpha (*cur_line))
@@ -220,15 +333,13 @@ bool try_command_label (Stack* labels, const char* cur_line, char* buffer, size_
         while (isalpha (cur_line[len_of_label]))
             len_of_label++;
 
-        buffer[*position] |= MASK_NUMBER;
+        buffer[*position] |= ASM_MASK_NUMBER;
         (*position)++;
 
-        int label_number = search_label (cur_line, len_of_label, labels);
+        size_t label_number = asm_lookup_label (cur_line, len_of_label, labels);
         if (label_number != LABEL_IS_NEW)
         {
-            double ip_in_double = (double)(((Label*)((char*) labels->data +
-                                            (size_t) label_number * labels->elem_size))->ip);
-            memcpy (buffer + *position, &ip_in_double, sizeof (double));
+            put_ip_in_buffer (labels, label_number, buffer, *position);
 
             *position += sizeof (double);
         }
@@ -243,14 +354,18 @@ bool try_command_label (Stack* labels, const char* cur_line, char* buffer, size_
     return false;
 }
 
-bool try_command_digit (const char* cur_line, char* buffer, size_t* position)
+bool asm_try_command_digit (const char* cur_line, char* buffer, size_t* position, AsmError* error)
 {
     if (isdigit (*cur_line))
     {
-        double value = NAN;
-        sscanf (cur_line, "%lf", &value);
+        double value = strtod (cur_line, NULL);
+        if (errno == ERANGE)
+        {
+            *error = ASM_ERROR_STRTOD;
+            return false;
+        }
 
-        buffer[*position] |= MASK_NUMBER;
+        buffer[*position] |= ASM_MASK_NUMBER;
         (*position)++;
 
         memcpy (buffer + *position, &value, sizeof (double));
@@ -261,7 +376,7 @@ bool try_command_digit (const char* cur_line, char* buffer, size_t* position)
     return false;
 }
 
-bool try_command_reg (const char* cur_line, char* buffer, size_t* position)
+bool asm_try_command_reg (const char* cur_line, char* buffer, size_t* position)
 {
     size_t len_of_reg = 0;
     if (isalpha (*cur_line))
@@ -270,10 +385,10 @@ bool try_command_reg (const char* cur_line, char* buffer, size_t* position)
         while (isalpha(cur_line[len_of_reg]))
             len_of_reg++;
 
-        Reg reg = search_reg (cur_line, len_of_reg);
-        if (reg != NOT_REG)
+        AsmReg reg = asm_lookup_reg (cur_line, len_of_reg);
+        if (reg != ASM_REG_NONE)
         {
-            buffer[*position] |= MASK_REG;
+            buffer[*position] |= ASM_MASK_REG;
             *position += sizeof (char);
             buffer[*position] = (char) reg;
             *position += sizeof (char);
@@ -284,10 +399,10 @@ bool try_command_reg (const char* cur_line, char* buffer, size_t* position)
     return false;
 }
 
-AsmError asm_ctor (Assem* asm_struct, const char* name_of_input_file)
+AsmError asm_ctor (Assembler* asm_struct, const char* name_of_input_file, const char* name_of_output_file)
 {
     assert (asm_struct);
-    AsmError      asm_error       = ASM_NO_ERROR;
+    AsmError      asm_error       = ASM_ERROR_OK;
     ProcFileError proc_file_error = PROC_FILE_NO_ERROR;
     StkError      stk_error       = STK_NO_ERROR;
     if (asm_struct == NULL)
@@ -299,15 +414,15 @@ AsmError asm_ctor (Assem* asm_struct, const char* name_of_input_file)
         return ASM_ERROR_FOPEN;
     asm_struct->input_file = temp_file;
 
-    temp_file = fopen ("../Processor/asm_output.txt", "wb");
+    temp_file = fopen (name_of_output_file, "wb");
     if (temp_file == NULL)
     {
         asm_error = ASM_ERROR_FOPEN;
-        goto close_file;
+        goto close_input_file;
     }
     asm_struct->output_file = temp_file;
 
-    stk_error = stack_ctor (&(asm_struct->labels), sizeof (Label));
+    stk_error = stack_ctor (&(asm_struct->labels), sizeof (AsmLabel));
     if (stk_error)
     {
         stk_print_error (stk_error);
@@ -336,51 +451,48 @@ full_termination:
     stack_dtor (&(asm_struct->labels));
 close_all_files:
     fclose (asm_struct->output_file);
-close_file:
+close_input_file:
     fclose (asm_struct->input_file);
 out:
     return asm_error;
 }
 
-AsmError assembly (Assem* asm_struct)
+AsmError asm_assembly (Assembler* asm_struct)
 {
     assert (asm_struct);
 
     if (asm_struct == NULL)
         return ASM_ERROR_NULL_PTR_STRUCT;
 
-    AsmError error = ASM_NO_ERROR;
+    AsmError error = ASM_ERROR_OK;
     size_t position = 0;
-    error = make_assem_file (&(asm_struct->labels), asm_struct->ptr_to_lines, asm_struct->number_of_lines, asm_struct->output_buffer, &position);
-    if (error)
+    for (size_t number_of_iterations = 0; number_of_iterations < NUMBER_OF_ROUNDS; number_of_iterations++)
     {
-        return error;
+        position = 0;
+        error = asm_make_assem_file (&(asm_struct->labels), asm_struct->ptr_to_lines, asm_struct->number_of_lines, asm_struct->output_buffer, &position);
+        if (error)
+        {
+            return error;
+        }
     }
 
-    position = 0;
-    error = make_assem_file (&(asm_struct->labels), asm_struct->ptr_to_lines, asm_struct->number_of_lines, asm_struct->output_buffer, &position);
-    if (error)
-    {
-        return error;
-    }
     size_t return_value = fwrite (asm_struct->output_buffer, sizeof (char), position, asm_struct->output_file);
     if (return_value != position)
         return ASM_ERROR_FWRITE;
 
-    return ASM_NO_ERROR;
+    return ASM_ERROR_OK;
 }
 
-AsmError asm_dtor (Assem* asm_struct)
+AsmError asm_dtor (Assembler* asm_struct)
 {
     assert (asm_struct);
-    AsmError asm_error = ASM_NO_ERROR;
+    AsmError asm_error = ASM_ERROR_OK;
 
     if (asm_struct == NULL)
         return ASM_ERROR_NULL_PTR_STRUCT;
 
     fclose (asm_struct->input_file);
     fclose (asm_struct->output_file);
-    labels_name_dtor (&(asm_struct->labels));
     StkError stk_error = stack_dtor (&(asm_struct->labels));
     if (stk_error)
         asm_error = ASM_ERROR_STK;
@@ -403,7 +515,7 @@ const char* asm_get_error (enum AsmError error)
     PRINT_BEGIN();
     switch (error)
     {
-        case ASM_NO_ERROR:
+        case ASM_ERROR_OK:
             return "Ass: Ошибок в работе функций не выявлено.";
         case ASM_ERROR_NULL_PTR_FILE:
             return "Ass: Передан нулевой указатель на файл.";
@@ -439,6 +551,8 @@ const char* asm_get_error (enum AsmError error)
             return "Asm: Ошибка работы функции fwrite.";
         case ASM_ERROR_RAM:
             return "Asm: Ошибка синтаксиса обращения к оперативной памяти.";
+        case ASM_ERROR_STRTOD:
+            return "Asm: Ошибка работы функции strtod.";
         default:
             return "Ass: Нужной ошибки не найдено...";
     }

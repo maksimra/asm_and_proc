@@ -35,8 +35,8 @@ $(BUILD):
 $(BUILD)/stack.o: source/stack.cpp
 	@g++ $(FLAGS) -c source/stack.cpp -o $(BUILD)/stack.o
 
-$(BUILD)/ram.o: source/ram.cpp
-	@g++ $(FLAGS) -c source/ram.cpp -o $(BUILD)/ram.o
+$(BUILD)/array.o: source/array.cpp
+	@g++ $(FLAGS) -c source/array.cpp -o $(BUILD)/array.o
 
 $(BUILD)/file_processing.o: source/file_processing.cpp
 	@g++ $(FLAGS) -c source/file_processing.cpp -o $(BUILD)/file_processing.o
