@@ -1,8 +1,14 @@
-#include "../include/skip_space.hpp"
 #include <ctype.h>
+#include <stdio.h>
+#include <stdbool.h>
+#include "../include/skip_space.hpp"
 
-void skip_space (const char** str)
+bool skip_space(const char **str)
 {
+    if (**str == '\0')
+        return true;
+
     while (isspace(**str))
         (*str)++;
+    return false;
 }

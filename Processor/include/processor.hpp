@@ -19,20 +19,21 @@ enum ProcCmd
     PROC_CMD_SUB  = 4,
     PROC_CMD_MUL  = 5,
     PROC_CMD_DIV  = 6,
-    PROC_CMD_OUT  = 7,
-    PROC_CMD_IN   = 8,
-    PROC_CMD_JMP  = 9,
-    PROC_CMD_JE   = 10,
-    PROC_CMD_JA   = 11,
-    PROC_CMD_JB   = 12,
-    PROC_CMD_JEA  = 13,
-    PROC_CMD_JEB  = 14,
-    PROC_CMD_JNE  = 15,
-    PROC_CMD_JNA  = 16,
-    PROC_CMD_JNB  = 17,
-    PROC_CMD_CALL = 18,
-    PROC_CMD_RET  = 19,
-    PROC_CMD_HLT  = 20
+    PROC_CMD_SQRT = 7,
+    PROC_CMD_OUT  = 8,
+    PROC_CMD_IN   = 9,
+    PROC_CMD_JMP  = 10,
+    PROC_CMD_JE   = 11,
+    PROC_CMD_JA   = 12,
+    PROC_CMD_JB   = 13,
+    PROC_CMD_JEA  = 14,
+    PROC_CMD_JEB  = 15,
+    PROC_CMD_JNE  = 16,
+    PROC_CMD_JNA  = 17,
+    PROC_CMD_JNB  = 18,
+    PROC_CMD_CALL = 19,
+    PROC_CMD_RET  = 20,
+    PROC_CMD_HLT  = 21
 };
 
 enum ProcReg
@@ -93,16 +94,17 @@ ProcError   proc_cmd_out              (Processor* proc_struct, size_t* position)
 ProcError   proc_cmd_ret              (Processor* proc_struct, size_t* position);
 ProcError   proc_cmd_call             (Processor* proc_struct, size_t* position);
 ProcError   proc_cmd_div              (Processor* proc_struct, size_t* position);
+ProcError   proc_cmd_sqrt             (Processor *proc_struct, size_t *position);
 ProcError   proc_cmd_mul              (Processor* proc_struct, size_t* position);
 ProcError   proc_cmd_sub              (Processor* proc_struct, size_t* position);
 ProcError   proc_cmd_add              (Processor* proc_struct, size_t* position);
 ProcError   proc_cmd_in               (Processor* proc_struct, size_t* position);
 StkError    proc_get_two_numbers      (Stack* stk, double* num1, double* num2);
-void        proc_print_error     (ProcError error);
-void        proc_set_log_file    (FILE* file);
-const char* proc_get_error       (ProcError error);
-ProcError   proc_ctor            (Processor* proc_struct, const char* name_of_input_file);
-ProcError   proc_dtor            (Processor* proc_struct);
+void        proc_print_error          (ProcError error);
+void        proc_set_log_file         (FILE* file);
+const char* proc_get_error            (ProcError error);
+ProcError   proc_ctor                 (Processor* proc_struct, const char* name_of_input_file);
+ProcError   proc_dtor                 (Processor* proc_struct);
 ProcError   proc_put_value            (Processor* proc_struct, size_t* position, double value);
 ProcError   proc_put_in_reg           (Processor* proc_struct, size_t* position, double value);
 ProcError   proc_put_in_ram           (Processor* proc_struct, size_t* position, double value);
