@@ -18,7 +18,7 @@ make
 ```
 5) To create executable code, type:
 ```
-./objects/output "name_of_file_with_assem_code.txt"
+objects/output "name_of_file_with_assem_code.txt" "output_file"
 ```
 6) To move in folder with processor:
 ```
