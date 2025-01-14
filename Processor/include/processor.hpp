@@ -38,11 +38,11 @@ enum ProcCmd
 
 enum ProcReg
 {
-    PROC_RAX,
-    PROC_RBX,
-    PROC_RCX,
-    PROC_RDX,
-    NUM_OF_REGS
+    PROC_RAX    = 0,
+    PROC_RBX    = 1,
+    PROC_RCX    = 2,
+    PROC_RDX    = 3,
+    NUM_OF_REGS = 4
 };
 
 enum ProcArgs
