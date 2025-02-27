@@ -11,7 +11,7 @@ int main(const int argc, const char *argv[])
 
     FILE *log_file = fopen("log_file.txt", "w");
     if (log_file == NULL)
-        printf("log_file wasn't open.\n");
+        fprintf(stderr, "log_file wasn't open.\n");
 
     int return_value = setvbuf(log_file, NULL, _IONBF, 0);
     if (return_value)

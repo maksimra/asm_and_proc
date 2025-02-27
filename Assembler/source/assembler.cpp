@@ -117,8 +117,7 @@ AsmError asm_make_assem_file(Stack *labels, char **lines, size_t num_line, char 
         if (is_void_string)
             continue;
 
-        if ( // TODO: комментарии добавить
-            asm_try_command(labels, cur_line, buffer, position, &asm_error) ||
+        if (asm_try_command(labels, cur_line, buffer, position, &asm_error) ||
             asm_try_label(labels, cur_line, *position, &stk_error))
         {
             if (asm_error)

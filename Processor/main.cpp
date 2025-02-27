@@ -4,7 +4,7 @@
 #include "include/file_processing.hpp"
 #include "include/array.hpp"
 
-#define PRINT_IF_NOT_OPEN(file, file_name) if (file == NULL) printf ("%s wasn't open.\n", file_name)
+#define PRINT_IF_NOT_OPEN(file, file_name) if (file == NULL) fprintf (stderr, "%s wasn't open.\n", file_name)
 
 const int necessary_n_args = 2;
 

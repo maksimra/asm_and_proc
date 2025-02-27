@@ -52,21 +52,9 @@ ProcError proc_calculations(Processor *proc_struct)
     PRINT_BEGIN();
     ProcError proc_error = PROC_ERROR_OK;
     size_t position = 0;
-    // int i = 0;
     while (position < proc_struct->file_size)
     {
-        // TODO: delete i++;
-        // TODO: delete if (i > 30)
-        // TODO: delete     abort();
-
-        // printf("rax = %lg\nrbx = %lg\nrcx = %lg\nrdx = %lg\n",
-        //        *(proc_struct->reg),
-        //        *(proc_struct->reg + 1),
-        //        *(proc_struct->reg + 2),
-        //        *(proc_struct->reg + 3));
-        // stack_dump(&(proc_struct->stk));
         char command = BUFFER[position] & (~MASK_ARG);
-        // printf("com: %d\n", command);
         switch (command)
         {
             case PROC_CMD_PUSH:

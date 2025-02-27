@@ -14,8 +14,7 @@ ArgsError args_check (const int argc, const char** argv, int ref_argc)
     if (argc != ref_argc)
         return ARGS_ERROR_ARGC;
 
-    FILE* file = fopen (argv[1], "r"); // TODO: функция должна вместо этого
-                                       // смотреть флаги. (спросить лично потом)
+    FILE* file = fopen (argv[1], "r");
     if (file == NULL)
         return ARGS_ERROR_ARGV;
 
